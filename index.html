@@ -37,7 +37,7 @@ h2{font-size:clamp(40px,8vw,80px)}
 .btn::after,.pill::after,.opt button::after{content:"";position:absolute;top:-30%;bottom:-30%;left:0;width:34px;background:linear-gradient(100deg,transparent,rgba(255,255,255,.85),transparent);transform:translateX(-80px) skewX(-20deg);will-change:transform;pointer-events:none;animation:shine 3.4s ease-in-out infinite}
 #how::after,#home::after{animation-delay:.6s}#cfg::after{animation-delay:1.2s}#pq::after{animation-delay:1s}#ps::after{animation-delay:2s}
 @keyframes shine{0%,60%{transform:translateX(-80px) skewX(-20deg)}100%{transform:translateX(min(70vw,420px)) skewX(-20deg)}}
-@keyframes mcin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes mcin{from{opacity:0}to{opacity:1}}
 .mc:not([hidden]){animation:mcin .18s ease-out}
 @media (prefers-reduced-motion:reduce){.btn::after,.pill::after,.opt button::after{animation:none;display:none}}
 #set{justify-content:safe center;overflow-y:auto}
@@ -130,13 +130,14 @@ button.tile{cursor:pointer}button.tile:hover{filter:brightness(1.05)}
 .mcard{position:relative;width:min(46vw,560px);min-width:min(92vw,330px);aspect-ratio:16/9;background:var(--frame) center/100% 100% no-repeat;display:flex;align-items:center;gap:6px;padding:11% 12% 12%;filter:drop-shadow(0 6px 10px rgba(0,20,50,.6))}
 .mcard::before{content:"";position:absolute;inset:13% 10%;background:rgba(5,30,70,.62);border-radius:14px;z-index:-1}
 .mcard canvas{flex:0 0 38%;width:38%;height:auto;aspect-ratio:5/6;pointer-events:none}
-.mc{flex:1;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;min-width:0}
+.mcard{min-height:0}
+.mc{flex:1;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;align-self:stretch;text-align:center;min-width:0;min-height:0}
 .mc h3{font-weight:400;font-size:clamp(22px,3vw,34px);color:var(--yellow);-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;line-height:1}
 .mc p{font-size:clamp(13px,1.5vw,17px);line-height:1.15}
 .mc .btn.sm{min-width:0;width:100%;font-size:clamp(17px,2.2vw,26px);padding:6px 10px 0;border-bottom-width:7px}
 .mc input{font:inherit;font-size:22px;text-transform:uppercase;width:100%;text-align:center;border:4px solid var(--ink);border-radius:14px;padding:4px;color:var(--ink);letter-spacing:4px}
 .mc .rc{font-size:clamp(22px,3vw,32px);letter-spacing:5px;color:var(--yellow);-webkit-text-stroke:4px var(--ink);paint-order:stroke fill}
-#mst{font-size:18px;color:#ffe14d;-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;min-height:26px}
+#mst{font-size:18px;color:#ffe14d;-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;height:48px;overflow:hidden;line-height:1.2}
 #who{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);font-size:18px;display:flex;gap:10px;align-items:center;-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;z-index:5}
 #who img{width:30px;height:30px;border-radius:50%;border:3px solid #fff}
 </style>
