@@ -2171,7 +2171,7 @@ meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));ap
 const SB_URL='https://adlillxbmnbyfvdivxum.supabase.co';
 const SB_KEY='sb_publishable_RRjD1S6FYu3UrD5AvzysKA_VpH6jcPB';
 /* URL Worker Cloudflare (hasil `wrangler deploy`), contoh: 'wss://save-ocean-room.NAMA.workers.dev' */
-const WS_URL='https://save-ocean.pages.dev';
+const WS_URL='wss://save-ocean-room.secret5.workers.dev';
 const CFG=!!(SB_URL&&SB_KEY&&window.supabase);
 const sb=CFG?supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,detectSessionInUrl:true}}):null;
 const q=id=>document.getElementById(id),LS=localStorage;
