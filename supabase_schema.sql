@@ -8,7 +8,8 @@ create table if not exists worlds(
   online boolean default false, offline_at timestamptz, updated_at timestamptz default now());
 create table if not exists rooms(
   code text primary key, host uuid unique references auth.users on delete cascade,
-  host_name text, open boolean default true, created_at timestamptz default now());
+  host_name text, open boolean default true, created_at timestamptz default now(), beat timestamptz default now());
+alter table rooms add column if not exists beat timestamptz default now();
 
 alter table profiles enable row level security;
 alter table worlds   enable row level security;

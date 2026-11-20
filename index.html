@@ -1288,7 +1288,7 @@ function farmStep(dt){if(state!=='play')return;
   FARMT.mature=matureN();
   if(FARMT.mature>0){FARMT.t+=dt;while(FARMT.t>=CORAL_EVERY){FARMT.t-=CORAL_EVERY;const x=CORAL_XP*FARMT.mature;toast('+'+x+' XP terumbu','xp');addXP(x)}}else FARMT.t=0;
   FARMT.hc-=dt;if(FARMT.hc<=0){FARMT.hc=.5;updReef();refreshHot()}
-  FARMT.rs=(FARMT.rs||0)+dt;if(FARMT.rs>240){FARMT.rs=0;resetLitter();spawnTreasure();toast('Sampah dan harta baru muncul','sad')}
+  FARMT.rs=(FARMT.rs||0)+dt;if(FARMT.rs>240&&!window.__noResp){FARMT.rs=0;CYC++;respawnAll();if(window.__onCyc)window.__onCyc();toast('Sampah dan harta baru muncul','sad')}
   for(const b of PG.beds){for(let i=0;i<4;i++)if(b.sp[i])plantVis(b,i);if(b.k==='rumput')kelpSync(b)}
   reefFish()}
 
@@ -1865,7 +1865,9 @@ function bubbleStep(dt){
     if(buL[i]<=0||cx*cx+cy*cy+cz*cz>1600||buP[j+1]>surfY(buP[j],buP[j+2])-.05){buL[i]=0;buP[j+1]=-999}}
   buG.attributes.position.needsUpdate=true}
 const TRAP=5;let spawnT=0;
-function newRound(){withSeed(WORLD_SEED+7,()=>{spawn(TRAP,10,80);spawnTreasure();resetTools();resetLitter()});{const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1])}vel.set(0,0,0);yaw=0;pitch=0;spawnT=0}
+let CYC=0;
+function respawnAll(){withSeed(WORLD_SEED+7+CYC*13,()=>{resetLitter();spawnTreasure()})}
+function newRound(){withSeed(WORLD_SEED+7+CYC*13,()=>{spawn(TRAP,10,80);spawnTreasure();resetTools();resetLitter()});{const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1])}vel.set(0,0,0);yaw=0;pitch=0;spawnT=0}
 function lock(){try{const p=cv.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
 function begin(){$('menu').hidden=true;newRound();lock();startCut()}
 $('play').onclick=()=>{round=1;if(!PG.tutDone)openTut(true);else begin()};
@@ -2023,7 +2025,7 @@ function baroStep(dt,show){if(TP){BA.p=0;BARO.visible=false;HG.position.y=0;HG.v
   BARO.position.set(bx,by-(1-v)*.55,-.55);BARO.rotation.set(.14,-.3+Math.sin(t*1.3)*.015,Math.sin(t*.9)*.012-.05*(1-v))}
 function weatherStep(dt){
   if(state==='play'){WX.t-=dt;
-    if(WX.t<=0){
+    if(WX.t<=0&&!window.__guest){
       if(WX.ph==='clear'){WX.ph='cloud';WX.t=40;if(PG.up.wx)toast('Badai ±40 dtk lagi! Siapkan jangkar (G)','sad')}
       else if(WX.ph==='cloud'){WX.ph='storm';WX.t=rnd(50,75);toast('BADAI! Turunkan jangkar (G) & dekati','sad')}
       else{WX.ph='clear';WX.t=rnd(90,150);toast('Badai reda');stormEnd()}}
@@ -2174,9 +2176,10 @@ const q=id=>document.getElementById(id),LS=localStorage;
 let user=null,token='',pname='Pemain',ENV=null,leftAt=0,saveT=0,booted=false;
 
 /* ---- env: cuaca, jangkar, kerusakan kapal ---- */
+function curTk(){const l=[],r=[];LIT.forEach((o,i)=>{if(!o.on)l.push(i)});TR.forEach((o,i)=>{if(o.got)r.push(i)});return{l,r}}
 function snapEnv(){
   if(state!=='play'&&ENV)return ENV;
-  return{ph:WX.ph,t:WX.t,dmg:STM.dmg,anchor:AN.s==='down'?{s:'down',x:AN.x,y:AN.y,z:AN.z}:{s:'up'}};
+  return{ph:WX.ph,t:WX.t,dmg:STM.dmg,anchor:AN.s==='down'?{s:'down',x:AN.x,y:AN.y,z:AN.z}:{s:'up'},cyc:CYC,rs:FARMT.rs||0,tk:curTk()};
 }
 function applyEnv(e){
   if(!e||!e.ph)return;
@@ -2195,13 +2198,13 @@ function shiftBeds(ms){
 const iso=()=>new Date().toISOString();
 async function push(off){
   if(!sb||!user)return;const now=iso();
-  const{error}=await sb.from('worlds').upsert({owner:user.id,progress:PG,env:snapEnv(),online:!off,offline_at:off?now:null,updated_at:now});
+  const{error}=await sb.from('worlds').upsert({owner:user.id,progress:PG,...(roomMode==='guest'?{}:{env:snapEnv()}),online:!off,offline_at:off?now:null,updated_at:now});
   if(!error)LS.setItem('sl_sync',now);else console.warn('save gagal',error.message);
 }
 function beacon(){
   if(!CFG||!user||!token)return;const now=iso();LS.setItem('sl_sync',now);
   try{fetch(SB_URL+'/rest/v1/worlds?on_conflict=owner',{method:'POST',keepalive:true,headers:{apikey:SB_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},
-    body:JSON.stringify({owner:user.id,progress:PG,env:snapEnv(),online:false,offline_at:now,updated_at:now})})}catch(e){}
+    body:JSON.stringify({owner:user.id,progress:PG,...(roomMode==='guest'?{}:{env:snapEnv()}),online:false,offline_at:now,updated_at:now})})}catch(e){}
 }
 window.__onSave=()=>{if(!user)return;clearTimeout(saveT);saveT=setTimeout(()=>push(false),5000)};
 setInterval(()=>{if(user&&state==='play')push(false)},15000);
@@ -2246,31 +2249,149 @@ async function hostRoom(){
   await sb.from('rooms').delete().eq('host',user.id);
   const c=rcode(),{error}=await sb.from('rooms').insert({code:c,host:user.id,host_name:pname,open:true});
   if(error){mst('Gagal: '+error.message);return}
-  roomCode=c;roomMode='host';q('rcode').textContent=c;subs('host');mst('')}
+  roomCode=c;roomMode='host';q('rcode').textContent=c;subs('host');mst('');
+  await openChan(c,true);hbT=setInterval(()=>{sb.from('rooms').update({beat:iso()}).eq('host',user.id).then(()=>{})},20000)}
 async function joinRoom(){
   if(!need())return;const c=q('rin').value.trim().toUpperCase();if(c.length!==6){mst('Kode harus 6 karakter.');return}
   mst('Mencari ruang...');
-  const{data,error}=await sb.from('rooms').select('code,host,host_name,open').eq('code',c).maybeSingle();
+  const{data,error}=await sb.from('rooms').select('code,host,host_name,open,beat').eq('code',c).maybeSingle();
   if(error){mst('Gagal: '+error.message);return}
   if(!data||!data.open){mst('Ruang tidak ditemukan / sudah tutup.');return}
-  roomCode=c;roomMode='guest';
-  mst('Ruang '+data.host_name+' ditemukan. Sinkron pemain online menyusul di bagian 2.')}
+  if(data.beat&&Date.now()-Date.parse(data.beat)>90000){mst('Host tidak aktif.');return}
+  if(data.host===user.id){mst('Ini ruangmu sendiri.');return}
+  roomCode=c;setGuest(true);roomMode='guest';
+  const{data:w}=await sb.from('worlds').select('env').eq('owner',data.host).maybeSingle();
+  if(w&&w.env&&w.env.ph)ENV=w.env;
+  await openChan(c,false,data.host);mst('');startGame()}
 q('mh').onclick=hostRoom;q('mj').onclick=()=>{subs('join');mst('')};q('mjg').onclick=joinRoom;
+
+/* ---- realtime: avatar, cuaca, jangkar, sampah/harta bersama (host-authoritative) ---- */
+let ch=null,hbT=0,hostId=null,seenHost=false,lastAK='u',ownEnv=null,wasGuest=false,lastSig='',lastSend=0;
+const RP=new Map(),KL=new Set(),KR=new Set(),_v=new THREE.Vector3();
+const send=(e,p)=>{if(ch)ch.send({type:'broadcast',event:e,payload:p}).catch(()=>{})};
+function setGuest(g){
+  if(g&&!wasGuest)ownEnv=ENV;else if(!g&&wasGuest){ENV=ownEnv;ownEnv=null}
+  wasGuest=g;window.__guest=g;window.__noResp=g}
+const akey=a=>a&&a.s==='down'?'d'+[a.x,a.y,a.z].map(v=>Math.round(v*10)).join(','):'u';
+const localA=()=>AN.s==='down'?{s:'down',x:AN.x,y:AN.y,z:AN.z}:{s:'up'};
+function applyAnchor(a){
+  if(!a||akey(a)===akey(localA()))return;
+  if(a.s==='down'){S.attach(aG);aG.position.set(a.x,a.y-.5,a.z);aG.rotation.set(0,aG.rotation.y,0);
+    AN.s='down';AN.x=a.x;AN.y=a.y;AN.z=a.z;AN.hooked=false;AN.sp=true;ropeA.init=false;ropeB.init=false}
+  else anchorReset();
+  lastAK=akey(localA())}
+function applyTaken(t){
+  if(!t)return;
+  (t.l||[]).forEach(i=>{KL.add(i);const o=LIT[i];if(o&&o.on){o.on=false;o.im.setMatrixAt(o.i,ZM);o.im.instanceMatrix.needsUpdate=true}});
+  (t.r||[]).forEach(i=>{KR.add(i);const o=TR[i];if(o&&!o.got){o.got=true;o.sp.visible=false}})}
+function syncCyc(n){if(n==null||n===CYC)return;CYC=n;FARMT.rs=0;KL.clear();KR.clear();respawnAll()}
+window.__onCyc=()=>{KL.clear();KR.clear();send('env',{cyc:CYC})};
+function applyLive(e){
+  if(!e)return;
+  if(state!=='play'){if(roomMode==='guest'&&e.ph)ENV=e;return}
+  if(roomMode==='guest'&&e.ph){
+    if(WX.ph!==e.ph){if(e.ph==='cloud')toast('Badai ±40 dtk lagi! Siapkan jangkar (G)','sad');else if(e.ph==='storm')toast('BADAI! Turunkan jangkar (G) & dekati','sad');else toast('Badai reda')}
+    WX.ph=e.ph;WX.t=e.t;STM.dmg=e.dmg||0}
+  syncCyc(e.cyc);applyTaken(e.tk);applyAnchor(e.anchor)}
+const nameTex=n=>{const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');
+  x.font='bold 30px sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=6;x.strokeStyle='rgba(0,0,0,.6)';
+  x.strokeText(n,128,32);x.fillStyle='#fff';x.fillText(n,128,32);return new THREE.CanvasTexture(c)};
+function addRP(id,name){
+  const r=cloneRig();S.add(r.g);
+  const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:nameTex(name),transparent:true,depthTest:false}));tag.scale.set(2,.5,1);tag.renderOrder=9;S.add(tag);
+  const o={id,r,tag,tg:new THREE.Vector3(),cur:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,spd:0,ph:0,lean:0,first:true};
+  RP.set(id,o);return o}
+function delRP(id){const o=RP.get(id);if(!o)return;S.remove(o.r.g);S.remove(o.tag);o.tag.material.map.dispose();o.tag.material.dispose();RP.delete(id)}
+function clearAvatars(){[...RP.keys()].forEach(delRP)}
+function onPos(p){
+  if(!p||!user||p.i===user.id)return;
+  const o=RP.get(p.i)||addRP(p.i,String(p.n||'Pemain').slice(0,24));
+  o.tg.set(p.x,p.y,p.z);o.tyaw=p.w;o.pitch=p.p;o.spd=p.s;
+  if(o.first){o.cur.copy(o.tg);o.yaw=o.tyaw;o.first=false}}
+let lt=performance.now();
+function rpLoop(now){
+  requestAnimationFrame(rpLoop);const dt=Math.min(.05,(now-lt)/1000);lt=now;
+  const on=state==='play';
+  for(const o of RP.values()){
+    const r=o.r,g=r.g;g.visible=o.tag.visible=on;if(!on)continue;
+    o.cur.lerp(o.tg,Math.min(1,dt*10));
+    let d=o.tyaw-o.yaw;d=((d+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;o.yaw+=d*Math.min(1,dt*10);
+    const sp=o.spd,k=Math.min(1,sp/7),amp=.25+.6*k;
+    const tl=Math.max(-.15,Math.min(3.1,Math.min(1,sp/4)*(.95-1.4*o.pitch)));o.lean+=(tl-o.lean)*(1-Math.exp(-5*dt));
+    o.ph+=dt*(2.5+sp*1.1);const ph=o.ph,w=Math.sin(ph);
+    g.rotation.set(-o.lean,o.yaw,0);
+    _v.set(0,-.6,0).applyQuaternion(g.quaternion);
+    g.position.set(o.cur.x-_v.x,o.cur.y-.6-_v.y,o.cur.z-_v.z);
+    r.legL.rotation.x=w*amp-.15*k;r.legR.rotation.x=-w*amp-.15*k;
+    r.kneeL.rotation.x=-(.18+.55*Math.max(0,Math.sin(ph-.9)))*(.5+.5*k);r.kneeR.rotation.x=-(.18+.55*Math.max(0,Math.sin(ph+Math.PI-.9)))*(.5+.5*k);
+    const fa=.2+2.4*k,sa=.15+.5*k;
+    r.armL.rotation.x=fa+w*sa;r.armR.rotation.x=fa-w*sa;r.armL.rotation.z=-.08-.1*k;r.armR.rotation.z=.08+.1*k;
+    r.elbowL.rotation.x=.2+.5*(.5+.5*Math.sin(ph+1.2))*(.4+.6*k);r.elbowR.rotation.x=.2+.5*(.5+.5*Math.sin(ph+1.2+Math.PI))*(.4+.6*k);
+    r.tor.rotation.y=Math.sin(ph)*.14*k;
+    r.head.rotation.x=Math.max(-1.1,Math.min(1.1,o.pitch+o.lean));
+    o.tag.position.set(o.cur.x,o.cur.y+1.1,o.cur.z)}}
+requestAnimationFrame(rpLoop);
+function kick(){toast('Host keluar. Ruang ditutup.','sad');closeModes();q('home').click()}
+function onPresence(){
+  const st=ch.presenceState();let h=false;
+  for(const id in st)if(st[id].some(m=>m.host))h=true;
+  for(const id of [...RP.keys()])if(!st[id])delRP(id);
+  if(h)seenHost=true;else if(roomMode==='guest'&&seenHost)kick()}
+async function openChan(code,isHost,hid){
+  leaveChan();hostId=hid||user.id;seenHost=isHost;lastAK='u';
+  const c=sb.channel('room:'+code,{config:{broadcast:{self:false},presence:{key:user.id}}});ch=c;
+  c.on('broadcast',{event:'p'},m=>onPos(m.payload))
+   .on('broadcast',{event:'env'},m=>applyLive(m.payload))
+   .on('broadcast',{event:'tk'},m=>applyLive({tk:m.payload}))
+   .on('broadcast',{event:'need'},()=>{if(roomMode==='host')send('env',snapEnv())})
+   .on('broadcast',{event:'bye'},()=>{if(roomMode==='guest')kick()})
+   .on('presence',{event:'sync'},onPresence)
+   .on('presence',{event:'join'},({newPresences})=>newPresences.forEach(p=>{if(p.name&&p.name!==pname)toast(p.name+' bergabung','gold')}))
+   .on('presence',{event:'leave'},({leftPresences})=>leftPresences.forEach(p=>{if(p.name&&p.name!==pname)toast(p.name+' keluar','sad')}));
+  await new Promise(res=>c.subscribe(async s=>{
+    if(s==='SUBSCRIBED'){await c.track({name:pname,host:isHost});res()}
+    else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'){mst('Koneksi realtime gagal.');res()}}));
+  if(!isHost)send('need',{})}
+function leaveChan(){
+  const c=ch;ch=null;clearInterval(hbT);clearAvatars();if(!c)return;
+  const done=()=>{try{sb.removeChannel(c)}catch(e){}};
+  if(roomMode==='host')c.send({type:'broadcast',event:'bye',payload:{}}).then(done,done);else done()}
+/* posisi ~8x/dtk (hanya jika bergerak, minimal 1x/dtk) */
+setInterval(()=>{
+  if(!ch||state!=='play'||!user)return;
+  const x=+pos.x.toFixed(2),y=+pos.y.toFixed(2),z=+pos.z.toFixed(2),w=+yaw.toFixed(3),p=+pitch.toFixed(3),now=performance.now(),sig=x+','+y+','+z+','+w+','+p;
+  if(sig===lastSig&&now-lastSend<1000)return;
+  lastSig=sig;lastSend=now;send('p',{i:user.id,n:pname,x,y,z,w,p,s:+vel.length().toFixed(2)})},125);
+/* jangkar & sampah/harta yang baru diambil -> broadcast */
+setInterval(()=>{
+  if(!ch||state!=='play')return;
+  const k=akey(localA());if(k!==lastAK){lastAK=k;send('env',{anchor:localA()})}
+  const nl=[],nr=[];
+  LIT.forEach((o,i)=>{if(!o.on&&!KL.has(i)){KL.add(i);nl.push(i)}});
+  TR.forEach((o,i)=>{if(o.got&&!KR.has(i)){KR.add(i);nr.push(i)}});
+  if(nl.length||nr.length)send('tk',{l:nl,r:nr})},300);
+/* host: cuaca tiap 3 dtk (jangkar/sampah dikirim saat berubah) */
+setInterval(()=>{if(ch&&roomMode==='host'&&state==='play')send('env',{ph:WX.ph,t:WX.t,dmg:STM.dmg,cyc:CYC})},3000);
+addEventListener('pagehide',()=>{if(user&&roomMode==='host'&&token){try{fetch(SB_URL+'/rest/v1/rooms?host=eq.'+user.id,{method:'DELETE',keepalive:true,headers:{apikey:SB_KEY,Authorization:'Bearer '+token}})}catch(e){}}});
 
 /* ---- start ---- */
 function startGame(){closeModes();round=1;if(!PG.tutDone)openTut(true);else begin()}
 const _begin=begin;
 begin=function(){
   if(leftAt){shiftBeds(Date.now()-leftAt);leftAt=0}
+  if(ENV&&ENV.cyc!=null)CYC=ENV.cyc;
   _begin();
-  if(ENV){applyEnv(ENV);ENV=null}
+  KL.clear();KR.clear();lastAK='u';
+  if(ENV){applyEnv(ENV);applyTaken(ENV.tk);if(ENV.rs!=null)FARMT.rs=ENV.rs;ENV=null}
+  if(roomMode==='guest')send('need',{});
 };
 q('home').addEventListener('click',()=>{
-  if(state==='play'){ENV=snapEnv();leftAt=Date.now()}
+  if(state==='play'){if(roomMode!=='guest')ENV=snapEnv();leftAt=Date.now()}
+  leaveChan();
   if(user){push(true);if(roomMode==='host')sb.from('rooms').delete().eq('host',user.id)}
-  roomMode='single';roomCode=null;
+  setGuest(false);roomMode='single';roomCode=null;
 },true);
-q('m1').onclick=()=>{roomMode='single';startGame()};
+q('m1').onclick=()=>{setGuest(false);roomMode='single';startGame()};
 q('mgo').onclick=startGame;
 
 /* ---- kartu mode + 3D player melambai ---- */
