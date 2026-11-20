@@ -4,7 +4,7 @@ compatibility_date = "2025-04-01"
 
 [vars]
 # Isi sama dengan Supabase (anon key aman publik). ALLOWED_ORIGIN contoh: "https://kintil555.github.io" (kosong = tanpa cek)
-SB_URL = ""
+SB_URL = "https://adlillxbmnbyfvdivxum.supabase.co"
 SB_KEY = ""
 ALLOWED_ORIGIN = ""
 
