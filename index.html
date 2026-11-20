@@ -2170,6 +2170,8 @@ meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));ap
 /* ISI dua nilai ini dari Supabase > Project Settings > API (anon key aman dipublikasikan, RLS yang menjaga data) */
 const SB_URL='';
 const SB_KEY='';
+/* URL Worker Cloudflare (hasil `wrangler deploy`), contoh: 'wss://save-ocean-room.NAMA.workers.dev' */
+const WS_URL='';
 const CFG=!!(SB_URL&&SB_KEY&&window.supabase);
 const sb=CFG?supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,detectSessionInUrl:true}}):null;
 const q=id=>document.getElementById(id),LS=localStorage;
@@ -2242,7 +2244,7 @@ q('lgx').onclick=async()=>{await push(true);await sb.auth.signOut();LS.removeIte
 const rcode=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<6;i++)s+=c[(_realRand()*c.length)|0];return s};
 let roomCode=null,roomMode='single';
 const mst=m=>q('mst').textContent=m||'';
-function need(){if(user)return true;mst('Login Discord dulu untuk multiplayer.');return false}
+function need(){if(!WS_URL){mst('WS_URL (Cloudflare Worker) belum diisi.');return false}if(user)return true;mst('Login Discord dulu untuk multiplayer.');return false}
 function subs(w){q('mmain').hidden=w!=='main';q('mhost').hidden=w!=='host';q('mjoin').hidden=w!=='join'}
 async function hostRoom(){
   if(!need())return;mst('Membuat ruang...');
@@ -2250,7 +2252,8 @@ async function hostRoom(){
   const c=rcode(),{error}=await sb.from('rooms').insert({code:c,host:user.id,host_name:pname,open:true});
   if(error){mst('Gagal: '+error.message);return}
   roomCode=c;roomMode='host';q('rcode').textContent=c;subs('host');mst('');
-  await openChan(c,true);hbT=setInterval(()=>{sb.from('rooms').update({beat:iso()}).eq('host',user.id).then(()=>{})},20000)}
+  if(!await openChan(c,true)){await sb.from('rooms').delete().eq('host',user.id);roomCode=null;roomMode='single';subs('main');return}
+  hbT=setInterval(()=>{sb.from('rooms').update({beat:iso()}).eq('host',user.id).then(()=>{})},20000)}
 async function joinRoom(){
   if(!need())return;const c=q('rin').value.trim().toUpperCase();if(c.length!==6){mst('Kode harus 6 karakter.');return}
   mst('Mencari ruang...');
@@ -2262,13 +2265,14 @@ async function joinRoom(){
   roomCode=c;setGuest(true);roomMode='guest';
   const{data:w}=await sb.from('worlds').select('env').eq('owner',data.host).maybeSingle();
   if(w&&w.env&&w.env.ph)ENV=w.env;
-  await openChan(c,false,data.host);mst('');startGame()}
+  if(!await openChan(c,false,data.host)){setGuest(false);roomMode='single';roomCode=null;return}
+  mst('');startGame()}
 q('mh').onclick=hostRoom;q('mj').onclick=()=>{subs('join');mst('')};q('mjg').onclick=joinRoom;
 
 /* ---- realtime: avatar, cuaca, jangkar, sampah/harta bersama (host-authoritative) ---- */
 let ch=null,hbT=0,hostId=null,seenHost=false,lastAK='u',ownEnv=null,wasGuest=false,lastSig='',lastSend=0;
 const RP=new Map(),KL=new Set(),KR=new Set(),_v=new THREE.Vector3();
-const send=(e,p)=>{if(ch)ch.send({type:'broadcast',event:e,payload:p}).catch(()=>{})};
+const send=(e,p)=>{if(ch&&ch.readyState===1)ch.send(JSON.stringify({e,p}))};
 function setGuest(g){
   if(g&&!wasGuest)ownEnv=ENV;else if(!g&&wasGuest){ENV=ownEnv;ownEnv=null}
   wasGuest=g;window.__guest=g;window.__noResp=g}
@@ -2332,30 +2336,38 @@ function rpLoop(now){
     o.tag.position.set(o.cur.x,o.cur.y+1.1,o.cur.z)}}
 requestAnimationFrame(rpLoop);
 function kick(){toast('Host keluar. Ruang ditutup.','sad');closeModes();q('home').click()}
-function onPresence(){
-  const st=ch.presenceState();let h=false;
-  for(const id in st)if(st[id].some(m=>m.host))h=true;
-  for(const id of [...RP.keys()])if(!st[id])delRP(id);
+const prevP=new Map();
+function onPres(list){
+  const ids=new Set(list.map(x=>x.id));let h=false;
+  list.forEach(x=>{if(x.host)h=true;if(!prevP.has(x.id)&&x.id!==user.id)toast(x.name+' bergabung','gold');prevP.set(x.id,x.name)});
+  [...prevP].forEach(([id,n])=>{if(!ids.has(id)){prevP.delete(id);if(id!==user.id)toast(n+' keluar','sad')}});
+  for(const id of [...RP.keys()])if(!ids.has(id))delRP(id);
   if(h)seenHost=true;else if(roomMode==='guest'&&seenHost)kick()}
+function onMsg(ev){
+  let m;try{m=JSON.parse(ev.data)}catch(e){return}
+  switch(m.e){
+    case'p':onPos(m.p);break;
+    case'env':applyLive(m.p);break;
+    case'tk':applyLive({tk:m.p});break;
+    case'pres':onPres(m.p);break;
+    case'bye':if(roomMode==='guest')kick();break}}
 async function openChan(code,isHost,hid){
   leaveChan();hostId=hid||user.id;seenHost=isHost;lastAK='u';
-  const c=sb.channel('room:'+code,{config:{broadcast:{self:false},presence:{key:user.id}}});ch=c;
-  c.on('broadcast',{event:'p'},m=>onPos(m.payload))
-   .on('broadcast',{event:'env'},m=>applyLive(m.payload))
-   .on('broadcast',{event:'tk'},m=>applyLive({tk:m.payload}))
-   .on('broadcast',{event:'need'},()=>{if(roomMode==='host')send('env',snapEnv())})
-   .on('broadcast',{event:'bye'},()=>{if(roomMode==='guest')kick()})
-   .on('presence',{event:'sync'},onPresence)
-   .on('presence',{event:'join'},({newPresences})=>newPresences.forEach(p=>{if(p.name&&p.name!==pname)toast(p.name+' bergabung','gold')}))
-   .on('presence',{event:'leave'},({leftPresences})=>leftPresences.forEach(p=>{if(p.name&&p.name!==pname)toast(p.name+' keluar','sad')}));
-  await new Promise(res=>c.subscribe(async s=>{
-    if(s==='SUBSCRIBED'){await c.track({name:pname,host:isHost});res()}
-    else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'){mst('Koneksi realtime gagal.');res()}}));
-  if(!isHost)send('need',{})}
+  try{
+    const{data}=await sb.auth.getSession();if(!data.session)throw new Error('Sesi login habis.');
+    await new Promise((res,rej)=>{
+      const w=new WebSocket(WS_URL+'/room/'+code+'?token='+encodeURIComponent(data.session.access_token));
+      let ok=false;
+      w.onmessage=ev=>{if(!ok){let m;try{m=JSON.parse(ev.data)}catch(e){return}if(m.e==='ready'){ok=true;ch=w;res()}else{if(m.e==='err')rej(new Error(m.p));return}}onMsg(ev)};
+      w.onerror=()=>{if(!ok)rej(new Error('Koneksi ke server gagal.'))};
+      w.onclose=ev=>{if(!ok)rej(new Error(ev.reason||'Koneksi ke server gagal.'));else if(ch===w){ch=null;if(state==='play'&&roomMode!=='single')toast('Koneksi multiplayer terputus','sad')}};
+      setTimeout(()=>{if(!ok){try{w.close()}catch(e){}rej(new Error('Server tidak merespon.'))}},10000)});
+    if(isHost)send('env',snapEnv());else send('need',{});
+    return true
+  }catch(e){mst(e.message);return false}}
 function leaveChan(){
-  const c=ch;ch=null;clearInterval(hbT);clearAvatars();if(!c)return;
-  const done=()=>{try{sb.removeChannel(c)}catch(e){}};
-  if(roomMode==='host')c.send({type:'broadcast',event:'bye',payload:{}}).then(done,done);else done()}
+  const c=ch;ch=null;clearInterval(hbT);clearAvatars();prevP.clear();
+  if(c){c.onclose=null;try{c.close(1000)}catch(e){}}}
 /* posisi ~8x/dtk (hanya jika bergerak, minimal 1x/dtk) */
 setInterval(()=>{
   if(!ch||state!=='play'||!user)return;
