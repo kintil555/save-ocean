@@ -943,9 +943,9 @@ void main(){
   vec4 v=uInv*vec4(vUv*2.-1.,1.,1.);v.xyz/=v.w;
   vec3 d=normalize((uCam*vec4(v.xyz,0.)).xyz);
   float tmax=45.;
-  if(uAb>.5){tmax=70.;if(d.y<-.001)tmax=min(tmax,(6.-uPos.y)/d.y)}
+  if(uAb>.5){tmax=70.;if(d.y<-.001)tmax=min(tmax,(6.-uPos.y)/d.y);}
   else{if(d.y<-.001)tmax=min(tmax,(-11.5-uPos.y)/d.y);
-  if(d.y>.001)tmax=min(tmax,(6.-uPos.y)/d.y)}
+  if(d.y>.001)tmax=min(tmax,(6.-uPos.y)/d.y);}
   const int N=32;float dt=tmax/float(N),j=h(vUv*vec2(1731.,911.)+uTime),acc=0.;
   for(int i=0;i<N;i++){float s=(float(i)+j)*dt;vec3 p=uPos+d*s;
     acc+=(uAb>.5?litA(p)*exp(-max(p.y-6.,0.)*.025)*exp(-s*.012):lit(p)*exp(-(6.-p.y)*.09)*exp(-s*.03))*dt;}
