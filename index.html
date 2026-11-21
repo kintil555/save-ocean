@@ -1843,11 +1843,34 @@ const RN=1100,rnP=new Float32Array(RN*3),rnA=new Float32Array(RN*6),rnG=new THRE
 for(let i=0;i<RN;i++){rnP[i*3]=rnd(-24,24);rnP[i*3+1]=WL+rnd(0,38);rnP[i*3+2]=rnd(-24,24)}
 rnG.setAttribute('position',new THREE.BufferAttribute(rnA,3).setUsage(THREE.DynamicDrawUsage));
 const rnM=new THREE.LineSegments(rnG,new THREE.LineBasicMaterial({color:0xcfe3f2,transparent:true,opacity:0,depthWrite:false}));rnM.frustumCulled=false;rnM.visible=false;S.add(rnM);
-function rainStep(dt,k,ab){
+/* splash hujan (khusus Low/Medium): bentuk 3D murni dari rumus -> cincin 8-sisi melebar + tetes lintasan parabola; pool tetap, tanpa simulasi */
+const RS_N=48,RS_D=6,RS_S=8,RS_LIFE=.42,rsX=new Float32Array(RS_N),rsZ=new Float32Array(RS_N),rsY=new Float32Array(RS_N),rsT=new Float32Array(RS_N).fill(-1),
+  rsAng=new Float32Array(RS_N*RS_D),rsHs=new Float32Array(RS_N*RS_D),rsVy=new Float32Array(RS_N*RS_D),
+  rgP=new Float32Array(RS_N*RS_S*6),rgC=new Float32Array(RS_N*RS_S*6),dpP=new Float32Array(RS_N*RS_D*3).fill(-999),dpC=new Float32Array(RS_N*RS_D*3);let rsI=0,rsDirty=false;
+const rgG=new THREE.BufferGeometry(),dpG=new THREE.BufferGeometry();
+rgG.setAttribute('position',new THREE.BufferAttribute(rgP,3).setUsage(THREE.DynamicDrawUsage));rgG.setAttribute('color',new THREE.BufferAttribute(rgC,3).setUsage(THREE.DynamicDrawUsage));
+dpG.setAttribute('position',new THREE.BufferAttribute(dpP,3).setUsage(THREE.DynamicDrawUsage));dpG.setAttribute('color',new THREE.BufferAttribute(dpC,3).setUsage(THREE.DynamicDrawUsage));
+const rgM=new THREE.LineSegments(rgG,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+const dpM=new THREE.Points(dpG,new THREE.PointsMaterial({map:BUTEX,size:.11,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,alphaTest:.02}));
+rgM.frustumCulled=dpM.frustumCulled=false;S.add(rgM,dpM);
+function rsAdd(x,z){const i=rsI;rsI=(rsI+1)%RS_N;rsX[i]=x;rsZ[i]=z;rsY[i]=WL+.03;rsT[i]=0;
+  for(let d=0;d<RS_D;d++){const q=i*RS_D+d;rsAng[q]=rnd(0,6.283);rsHs[q]=d?rnd(.25,.8):0;rsVy[q]=d?rnd(1.3,2.1):rnd(2,2.6)}}
+function rsStep(dt){let any=false;
+  for(let i=0;i<RS_N;i++){if(rsT[i]<0)continue;rsT[i]+=dt;const age=rsT[i],u=age/RS_LIFE;
+    if(u>=1){rsT[i]=-1;rgP.fill(0,i*RS_S*6,(i+1)*RS_S*6);rgC.fill(0,i*RS_S*6,(i+1)*RS_S*6);for(let d=0;d<RS_D;d++){const o=(i*RS_D+d)*3;dpP[o+1]=-999;dpC[o]=dpC[o+1]=dpC[o+2]=0}continue}
+    any=true;const x=rsX[i],z=rsZ[i],y0=rsY[i],r=.06+.5*(1-(1-u)*(1-u)),f=(1-u)*(1-u)*.85;
+    for(let s=0;s<RS_S;s++){const a0=s/RS_S*6.2832,a1=(s+1)/RS_S*6.2832,o=(i*RS_S+s)*6;
+      rgP[o]=x+Math.cos(a0)*r;rgP[o+1]=y0;rgP[o+2]=z+Math.sin(a0)*r;rgP[o+3]=x+Math.cos(a1)*r;rgP[o+4]=y0;rgP[o+5]=z+Math.sin(a1)*r;
+      rgC[o]=rgC[o+3]=f*.8;rgC[o+1]=rgC[o+4]=f*.92;rgC[o+2]=rgC[o+5]=f}
+    for(let d=0;d<RS_D;d++){const q=i*RS_D+d,o=q*3,h=rsHs[q]*age,y=y0+rsVy[q]*age-5.5*age*age;
+      if(y<y0){dpP[o+1]=-999;dpC[o]=dpC[o+1]=dpC[o+2]=0;continue}
+      dpP[o]=x+Math.cos(rsAng[q])*h;dpP[o+1]=y;dpP[o+2]=z+Math.sin(rsAng[q])*h;const c=1-u*.6;dpC[o]=c*.85;dpC[o+1]=c*.95;dpC[o+2]=c}}
+  if(any||rsDirty){rgG.attributes.position.needsUpdate=rgG.attributes.color.needsUpdate=dpG.attributes.position.needsUpdate=dpG.attributes.color.needsUpdate=true}rsDirty=any}
+function rainStep(dt,k,ab){rsStep(dt);
   const on=ab&&k>.12;rnM.visible=on;if(!on)return;rnM.material.opacity=Math.min(.6,(k-.12)*1.4);
   const cx=cam.position.x,cz=cam.position.z,nn=Math.min(RN,Math.floor(RN*Math.min(1,(k-.12)*1.6)));
   for(let i=0;i<RN;i++){const j=i*3,q=i*6;let x=rnP[j]+RW[0]*dt,y=rnP[j+1]-32*dt,z=rnP[j+2]+RW[1]*dt;
-    if(y<WL){y+=38;x=cx+rnd(-24,24);z=cz+rnd(-24,24)}
+    if(y<WL){if(i<nn&&!HQ()&&Math.random()<.07*k&&Math.abs(x-cx)<20&&Math.abs(z-cz)<20)rsAdd(x,z);y+=38;x=cx+rnd(-24,24);z=cz+rnd(-24,24)}
     let dx=x-cx;dx=((dx+24)%48+48)%48-24;x=cx+dx;let dz=z-cz;dz=((dz+24)%48+48)%48-24;z=cz+dz;
     rnP[j]=x;rnP[j+1]=y;rnP[j+2]=z;
     if(i<nn){rnA[q]=x;rnA[q+1]=y;rnA[q+2]=z;rnA[q+3]=x-RW[0]*.03;rnA[q+4]=y+.95;rnA[q+5]=z-RW[1]*.03}
