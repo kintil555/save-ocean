@@ -1887,13 +1887,23 @@ function playSplash(p){if(!AU.ctx)return;if(AU.splash){playBuf(AU.splash,rnd(.85
   const s=c.createBufferSource(),fl=c.createBiquadFilter(),g=c.createGain();s.buffer=b;fl.type='lowpass';
   fl.frequency.setValueAtTime(5000,c.currentTime);fl.frequency.exponentialRampToValueAtTime(500,c.currentTime+.6);
   g.gain.value=.9*Math.min(1,.4+p);s.connect(fl);fl.connect(g);g.connect(AU.sg);s.start()}
-function splash(x,z,pw){const y=surfY(x,z);wxEmit(x,z,1.6*pw+.6,-.2*pw,.6);
-  const g=rgs[rgI++%rgs.length];g.a=1;g.s=.6;g.pw=pw;g.m.position.set(x,y+.04,z);g.m.visible=true;
+/* High/Ultra: gangguan fisik ke simulasi gelombang (kawah -> pantulan -> turbulen -> palung), bukan cincin mesh. Low/Medium: cincin mesh sederhana */
+const WXQ=[],wxLater=(d,f)=>WXQ.push({t:d,f});
+function wxTurb(x,z,r,n,rad,amp,foam){for(let i=0;i<n;i++){const a=rnd(0,6.283),rr=r*rnd(.4,1.2);wxEmit(x+Math.cos(a)*rr,z+Math.sin(a)*rr,rad,amp*rnd(-.7,1),foam*rnd(.3,1),.8)}}
+function wxImpact(x,z,pw){const S=2.2;
+  wxEmit(x,z,1.3+1.3*pw,-(.25+.4*pw)*S,.9,.8);
+  wxLater(.08,()=>wxEmit(x,z,1+.9*pw,(.2+.35*pw)*S,.6,.8));
+  wxLater(.18,()=>wxTurb(x,z,.6+pw,6,.7,.14*pw*S,.3));
+  wxLater(.34,()=>wxEmit(x,z,1.4+pw,-(.1+.12*pw)*S,.2,.8))}
+function splash(x,z,pw){const y=surfY(x,z);
+  if(HQ())wxImpact(x,z,pw);
+  else{const g=rgs[rgI++%rgs.length];g.a=1;g.s=.6;g.pw=pw;g.m.position.set(x,y+.04,z);g.m.visible=true}
   const n=Math.floor(18+30*pw);
   for(let i=0;i<n;i++){const a=rnd(0,6.283),sp=rnd(.5,3.2)*(.6+pw*.6);drAdd(x+Math.cos(a)*.3,y,z+Math.sin(a)*.3,Math.cos(a)*sp,rnd(3,8)*(.5+pw*.6),Math.sin(a)*sp,rnd(.8,1.5),0)}
   for(let i=0;i<10*pw+4;i++)drAdd(x+rnd(-.5,.5),y-rnd(.2,1.2),z+rnd(-.5,.5),rnd(-.4,.4),rnd(.8,2.2),rnd(-.4,.4),rnd(1.5,3),1);
   bubBurst(x,y-.5,z,Math.floor(10+14*pw),.8);playSplash(pw)}
 function splashStep(dt){
+  for(let i=WXQ.length-1;i>=0;i--){const q=WXQ[i];q.t-=dt;if(q.t<=0){WXQ.splice(i,1);q.f()}}
   for(let i=0;i<DRN;i++){if(drL[i]<=0)continue;drL[i]-=dt;
     if(drK[i]===0)drV[i*3+1]-=14*dt;else{drV[i*3]*=1-dt;drV[i*3+2]*=1-dt}
     drP[i*3]+=drV[i*3]*dt;drP[i*3+1]+=drV[i*3+1]*dt;drP[i*3+2]+=drV[i*3+2]*dt;
@@ -1907,8 +1917,7 @@ function splashStep(dt){
 
 /* efek nyebur cutscene: kawah, mahkota air (mesh), tiang pancaran, semburan tetes halus + tetes besar, riak berlapis, guncangan kamera */
 const CTF=[],ctAt=(d,f)=>CTF.push({t:CSN.t+d,f});
-function ringAdd(x,z,pw,s0){const g=rgs[rgI++%rgs.length];g.a=1;g.s=s0;g.pw=pw;g.m.position.set(x,surfY(x,z)+.04,z);g.m.visible=true}
-function wxRing(x,z,r,n,rad,amp,foam){for(let i=0;i<n;i++){const a=i/n*6.283;wxEmit(x+Math.cos(a)*r,z+Math.sin(a)*r,rad,amp,foam,.9)}}
+function ringAdd(x,z,pw,s0){if(HQ())return;const g=rgs[rgI++%rgs.length];g.a=1;g.s=s0;g.pw=pw;g.m.position.set(x,surfY(x,z)+.04,z);g.m.visible=true}
 /* tetes besar (pool terpisah, titik lebih besar) */
 const BDN=200,bdP=new Float32Array(BDN*3).fill(-999),bdV=new Float32Array(BDN*3),bdL=new Float32Array(BDN);let bdI=0;
 const bdG=new THREE.BufferGeometry();bdG.setAttribute('position',new THREE.BufferAttribute(bdP,3).setUsage(THREE.DynamicDrawUsage));
@@ -1936,17 +1945,17 @@ function spray(x,y,z,n,s0,s1,e0,e1,off){for(let i=0;i<n;i++){const a=rnd(0,6.283
 function sprayBig(x,y,z,n,s0,s1,e0,e1,off){for(let i=0;i<n;i++){const a=rnd(0,6.283),sp=rnd(s0,s1),el=rnd(e0,e1),h=sp*Math.cos(el);
     bdAdd(x+Math.cos(a)*off,y,z+Math.sin(a)*off,Math.cos(a)*h,sp*Math.sin(el),Math.sin(a)*h,rnd(1,2.2))}}
 function diveFx(x,z){const y=surfY(x,z);
-  splash(x,z,1);wxEmit(x,z,1.8,-.8,1,1.2);CSN.sh=.32;
+  splash(x,z,1);CSN.sh=.32;
   crownAdd(x,z,2.4,1,.7);
   spray(x,y,z,120,4,9.5,.85,1.3,.5);sprayBig(x,y,z,50,3.5,8,.8,1.3,.5);
   ctAt(.05,()=>{crownAdd(x,z,1.7,.7,.6);spray(x,y,z,50,2.5,6,.9,1.4,.3)});
-  ctAt(.09,()=>{wxRing(x,z,1.1,10,.9,.34,.9);ringAdd(x,z,.9,.5)});
+  ctAt(.09,()=>{wxTurb(x,z,1.1,6,.8,.3,.7);ringAdd(x,z,.9,.5)});
   ctAt(.14,()=>{const yy=surfY(x,z);crownAdd(x,z,6,1,.9,true);
     for(let i=0;i<50;i++)drAdd(x+rnd(-.2,.2),yy,z+rnd(-.2,.2),rnd(-1.2,1.2),rnd(9,15),rnd(-1.2,1.2),rnd(1.3,2.2),0);
     for(let i=0;i<30;i++)bdAdd(x+rnd(-.2,.2),yy,z+rnd(-.2,.2),rnd(-1.5,1.5),rnd(8,14),rnd(-1.5,1.5),rnd(1.3,2.2));wxEmit(x,z,1,.45,.5,1.2)});
-  ctAt(.26,()=>{wxRing(x,z,2,14,.9,.22,.55);ringAdd(x,z,.65,.5);const yy=surfY(x,z);spray(x,yy,z,40,2,5,.9,1.4,.8)});
-  ctAt(.45,()=>{wxRing(x,z,3.1,18,1,.12,.28);ringAdd(x,z,.5,.4);spray(x,surfY(x,z),z,30,1.5,4,1,1.4,1.2)});
-  ctAt(.8,()=>{wxRing(x,z,4.4,22,1.1,.07,.14);bubBurst(x,surfY(x,z)-.8,z,16,1)})}
+  ctAt(.26,()=>{wxTurb(x,z,2,8,.9,.2,.5);ringAdd(x,z,.65,.5);const yy=surfY(x,z);spray(x,yy,z,40,2,5,.9,1.4,.8)});
+  ctAt(.45,()=>{wxTurb(x,z,3.1,10,1,.12,.25);ringAdd(x,z,.5,.4);spray(x,surfY(x,z),z,30,1.5,4,1,1.4,1.2)});
+  ctAt(.8,()=>{wxTurb(x,z,4.4,12,1.1,.08,.12);bubBurst(x,surfY(x,z)-.8,z,16,1)})}
 let ctSk=0;
 function cutWater(dt,T,k){/* interaksi tubuh-air: tekanan udara saat jatuh, riak & gelembung saat masuk/tenggelam */
   const wy=WL,px=_cp.x,pz=_cp.z;
