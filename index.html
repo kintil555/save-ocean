@@ -2378,6 +2378,8 @@ function update(dt){
 const DEEP={on:false,pending:false,busy:false,built:false,dusk:false,was:false,fo:false,FB:-95,TOP:-50,gh:null,g:new THREE.Group(),anchor:new THREE.Vector3(0,-52,0),caves:[],jel:[],ang:[],wh:[],lf:null,fx:[],iso:[],sq:[],dc:0};
 DEEP.g.visible=false;S.add(DEEP.g);
 const DCAV=[[-48,-34,.4],[42,44,2.2],[-22,62,4.1]],DTUN=[],dClock=()=>(Date.now()%1e7)/1e3;
+/* lubang dasar (x,z,radius,kedalaman) & dataran tinggi (x,z,radius,tinggi): bentuk medan laut dalam ala jurang */
+const DSH=[[65,-42,15,42],[-58,-72,14,36],[-20,22,13,34],[80,25,11,30],[0,-75,12,32],[-78,55,10,30]],DMS=[[34,-72,12,22],[-45,5,9,18],[72,-5,10,20]];
 Object.defineProperty(window,'__deepOn',{get:()=>DEEP.on});
 const DOB=[],DGR=new Map(),DEMPTY=[],DGH=(x,z)=>DEEP.on?DEEP.gh(x,z):fh(x,z);
 const dgNear=(x,z)=>DGR.get(Math.floor(x/16)+','+Math.floor(z/16))||DEMPTY;
@@ -2392,6 +2394,8 @@ DEEP.gh=(x,z)=>{const FB=DEEP.FB;
   let h=FB+Math.sin(x*.09+1.3)*Math.cos(z*.07)*5+Math.sin(x*.21+z*.17)*2.2+Math.sin(x*.43-z*.37+2)*.9;
   const r1=Math.abs(Math.sin(x*.045+Math.sin(z*.03)*2.2)),r2=Math.abs(Math.sin(z*.052+Math.cos(x*.035)*2+1.7));
   h-=Math.max(0,1-r1*9)*30+Math.max(0,1-r2*10)*26;
+  for(const q of DSH){const dx=x-q[0],dz=z-q[1],R2=q[2]*2.7;if(dx*dx+dz*dz>R2*R2)continue;const dd=Math.hypot(dx,dz)+Math.sin(Math.atan2(dz,dx)*3+q[0]*.1)*q[2]*.14,t=1-Math.min(1,Math.max(0,(dd-q[2]*.5)/(q[2]*2.2)));h-=q[3]*t*t*(3-2*t)}
+  for(const q of DMS){const dx=x-q[0],dz=z-q[1],R2=q[2]*2.2;if(dx*dx+dz*dz>R2*R2)continue;const dd=Math.hypot(dx,dz)+Math.sin(Math.atan2(dz,dx)*4+q[1]*.1)*q[2]*.12,t=1-Math.min(1,Math.max(0,(dd-q[2]*.6)/(q[2]*1.3)));h+=q[3]*t*t*(3-2*t)}
   const k=Math.min(1,Math.max(0,(Math.hypot(x,z)-10)/12));h=FB-1+(h-FB+1)*k;
   const e=Math.max(Math.abs(x),Math.abs(z));if(e>B-16)h+=(e-(B-16))*1.4;
   if(DTUN.length){let best=1e9,by=0;
@@ -2419,9 +2423,10 @@ const _dcv=new THREE.Vector3();
 DEEP.cur=(x,y,z,T,o)=>{const dep=Math.max(0,Math.min(1,(DEEP.TOP-y-30)/50)),k=.55+.9*dep;
   return o.set((Math.sin(z*.021+T*.05)*.5+Math.sin(y*.07+T*.11)*.3+.15)*k,Math.sin(x*.03+T*.07)*.12*k,(Math.cos(x*.019-T*.04)*.5+Math.cos(y*.06+T*.09)*.3)*k)};
 
-const DRG=new THREE.IcosahedronGeometry(1,3);
-{const p=DRG.attributes.position,v=new THREE.Vector3();for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);
-  const n=Math.sin(v.x*3.1+v.y*2.3)*.5+Math.sin(v.z*4.7-v.x*1.9)*.35+Math.sin(v.y*6.1+v.z*2.7)*.2;v.multiplyScalar(1+.11*n);p.setXYZ(i,v.x,v.y,v.z)}DRG.computeVertexNormals()}
+/* batu gaya game: bola terdisplace sama seperti RB (versi low-poly untuk dinding terowongan) */
+const mkRock=(sd,w,h)=>{const g=new THREE.SphereGeometry(1,w,h),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),n=Math.sin(x*3.1+sd)*Math.sin(y*2.7+sd*1.7)+Math.sin(z*3.7+sd*.6)*Math.sin(x*2.3+sd)+.5*Math.sin(x*7+y*6+z*5+sd),r=1+.13*n;p.setXYZ(i,x*r,y*r,z*r)}
+  g.computeVertexNormals();return g};
 const DGLOW=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);
   g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(255,255,255,.5)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
 
@@ -2495,12 +2500,14 @@ function buildDeep(){if(DEEP.built)return;DEEP.built=true;dtInit();
     const g=DEEP.g,FB=DEEP.FB,gh=DEEP.gh;
     /* lantai */
     {const W=2*B+40,N=150,fg=new THREE.PlaneGeometry(W,W,N,N);fg.rotateX(-Math.PI/2);const p=fg.attributes.position,col=new Float32Array(p.count*3);
-      for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=gh(x,z);p.setY(i,y);const d=Math.min(1,Math.max(0,(y-(FB-34))/40)),sh=.75+.25*Math.sin(x*.7)*Math.cos(z*.6);
-        col[i*3]=(.10+.16*d)*sh;col[i*3+1]=(.12+.17*d)*sh;col[i*3+2]=(.15+.18*d)*sh}
+      for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=gh(x,z);p.setY(i,y);
+        const sl=Math.abs(gh(x+1.6,z)-y)+Math.abs(gh(x,z+1.6)-y),rk=Math.min(1,Math.max(0,(sl-.6)/2.4)),d=Math.min(1,Math.max(0,(y-(FB-48))/52)),
+          sh=(.62+.38*d)*(.86+.14*Math.sin(x*1.7+Math.sin(z*.9))*Math.cos(z*1.3-x*.4));
+        col[i*3]=(.36-.12*rk)*sh;col[i*3+1]=(.33-.06*rk)*sh;col[i*3+2]=(.27+.04*rk)*sh}
       fg.setAttribute('color',new THREE.BufferAttribute(col,3));fg.computeVertexNormals();
       const fm=new THREE.Mesh(fg,M(0xffffff,{vertexColors:true}));fm.frustumCulled=false;g.add(fm)}
     /* batu: elipsoid (gua kubah, atap celah, bongkahan) + pilar */
-    const ELL=[],PIL=[],ell=(x,y,z,rx,ry,rz,yaw)=>{ELL.push([x,y,z,rx,ry,rz,yaw||0]);addCol({e:1,x,y,z,rx:rx*.9,ry:ry*.9,rz:rz*.9},Math.max(rx,rz)+1)};
+    const ELL=[],PIL=[],ell=(x,y,z,rx,ry,rz,yaw,lo)=>{ELL.push([x,y,z,rx,ry,rz,yaw||0,lo?1:0]);addCol({e:1,x,y,z,rx:rx*.9,ry:ry*.9,rz:rz*.9},Math.max(rx,rz)+1)};
     DCAV.forEach(([cx,cz,gap])=>{const y0=gh(cx,cz);
       for(let i=0;i<12;i++){if(i===0||i===6)continue;const a=gap+i/12*6.2832,x=cx+Math.cos(a)*13,z=cz+Math.sin(a)*13;ell(x,gh(x,z)+5.5,z,4.8,8,4.8,rnd(0,6.28))}
       ell(cx,y0+12.5,cz,13,4.2,13,0);DEEP.caves.push({x:cx,z:cz,y:y0})});
@@ -2508,17 +2515,39 @@ function buildDeep(){if(DEEP.built)return;DEEP.built=true;dtInit();
       for(let s=-88;s<=88;s+=4.6){n++;if(n%6>3)continue;const x=(k*Math.PI-Math.sin(s*.03)*2.2)/.045;if(Math.abs(x)>B-12||Math.hypot(x,s)<18)continue;nearTun(x,s,12)||ell(x,FB+1,s,4.5,2.2,4.2,0)}
       n=0;for(let s=-88;s<=88;s+=4.6){n++;if(n%6<2)continue;const z=(k*Math.PI-1.7-Math.cos(s*.035)*2)/.052;if(Math.abs(z)>B-12||Math.hypot(s,z)<18)continue;nearTun(s,z,12)||ell(s,FB+1,z,4.2,2.2,4.5,0)}}
     for(let i=0;i<55;i++){const x=rnd(12-B,B-12),z=rnd(12-B,B-12);if(Math.hypot(x,z)<14||nearTun(x,z,13))continue;const r=rnd(1.2,3.5);ell(x,gh(x,z)+r*.4,z,r*1.2,r*.8,r,0)}
-    for(let i=0;i<26;i++){const x=rnd(12-B,B-12),z=rnd(12-B,B-12);if(Math.hypot(x,z)<14||nearTun(x,z,13))continue;const r=rnd(1.2,3.2),y=gh(x,z),top=Math.min(DEEP.TOP-8,y+rnd(10,24));PIL.push([x,y,z,r,top]);addCol({x,z,r:r*1.05,top},r+1)}
+    for(let i=0;i<36;i++){const x=rnd(12-B,B-12),z=rnd(12-B,B-12);if(Math.hypot(x,z)<14||nearTun(x,z,13))continue;const r=rnd(1.4,3.4),y=gh(x,z),top=i%3===0?DEEP.TOP+1:Math.min(DEEP.TOP-8,y+rnd(12,30));PIL.push([x,y,z,r,top]);addCol({x,z,r:r*1.12,top},r+1.5)}
     /* dinding + atap terowongan */
     DTUN.forEach(T=>{const S=T.s;for(let i=0;i<S.length;i++){const a=S[Math.max(0,i-1)],b=S[Math.min(S.length-1,i+1)];let tx=b.x-a.x,tz=b.z-a.z;const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;const nx=-tz,nz=tx,p=S[i];
-      for(const o of[-5.4,5.4])ell(p.x+nx*o,p.y+4.5,p.z+nz*o,3.2,5.5,3.2,0);
-      for(const o of[-3.2,0,3.2])ell(p.x+nx*o,p.y+8.5,p.z+nz*o,3.4,2.7,3.4,0)}});
-    {const im=new THREE.InstancedMesh(DRG,M(0x3a434c),ELL.length);ELL.forEach((e,i)=>{_dm.position.set(e[0],e[1],e[2]);_dm.rotation.set(0,e[6],0);_dm.scale.set(e[3],e[4],e[5]);_dm.updateMatrix();im.setMatrixAt(i,_dm.matrix)});im.frustumCulled=false;g.add(im)}
-    {const cg=new THREE.CylinderGeometry(1,1.25,1,12,1),im=new THREE.InstancedMesh(cg,M(0x2f373f),PIL.length);
-      PIL.forEach((p,i)=>{const h=p[4]-p[1]+3;_dm.position.set(p[0],p[1]-3+h/2,p[2]);_dm.rotation.set(0,0,0);_dm.scale.set(p[3],h,p[3]);_dm.updateMatrix();im.setMatrixAt(i,_dm.matrix)});im.frustumCulled=false;g.add(im)}
+      for(const o of[-5.4,5.4])ell(p.x+nx*o,p.y+4.5,p.z+nz*o,3.2,5.5,3.2,0,1);
+      for(const o of[-3.2,0,3.2])ell(p.x+nx*o,p.y+8.5,p.z+nz*o,3.4,2.7,3.4,0,1)}});
+    /* lengkung batu: torus terdisplace satu mesh, sama seperti tunnel() di dunia atas */
+    [[-30,-52,.4,1],[50,-78,1.9,2],[8,38,.9,1],[-40,76,2.6,2],[70,62,.2,1]].forEach(([cx,cz,ang,N])=>{if(nearTun(cx,cz,16))return;
+      const R=rnd(6.5,8.5),r=rnd(2,2.7),Zs=N*rnd(.9,1.3)+.6,base=gh(cx,cz)-.2,sd=rnd(0,10),Rr=R-r,Zl=r*Zs,c=Math.cos(ang),sn=Math.sin(ang),w=(lx,lz)=>[cx+lx*c+lz*sn,cz-lx*sn+lz*c],
+        ag=new THREE.TorusGeometry(R,r,16,36,Math.PI*1.2);ag.rotateZ(-.1*Math.PI);const ap=ag.attributes.position,an=ag.attributes.normal;
+      for(let i=0;i<ap.count;i++){const x=ap.getX(i),y=ap.getY(i),z=ap.getZ(i),d=r*.3*rockNoise(x,y,z,sd);ap.setXYZ(i,x+an.getX(i)*d,y+an.getY(i)*d,(z+an.getZ(i)*d)*Zs)}
+      ag.computeVertexNormals();const am=new THREE.Mesh(ag,RM[Math.floor(rnd(0,3))]);am.position.set(cx,base,cz);am.rotation.y=ang;g.add(am);
+      const mm=Math.max(0,Zl-r*.8);for(let lz=-mm;lz<=mm+.01;lz+=r*.8)for(const sg of[-1,1]){const q=w(sg*R,lz);addCol({x:q[0],z:q[1],r:r*.85,top:base+R*.8},r+2)}
+      const L=Zl-r*.3;for(const[xa,xb,yv]of[[-.4,.4,.917],[.4,.7,.714],[-.7,-.4,.714],[.7,.9,.436],[-.9,-.7,.436]]){const a=w(xa*Rr,-L),b=w(xb*Rr,L),o={x0:Math.min(a[0],b[0]),x1:Math.max(a[0],b[0]),z0:Math.min(a[1],b[1]),z1:Math.max(a[1],b[1]),y0:base+yv*Rr-.3,y1:base+R+r+.4};
+        o.x=(o.x0+o.x1)/2;o.z=(o.z0+o.z1)/2;addCol(o,Math.max(o.x1-o.x0,o.z1-o.z0)/2+1)}});
+    /* batu: material & geometri sama dengan dunia atas (RM/RB), bukan material baru */
+    {const RBL=[1,2,3].map(sd=>mkRock(sd,12,9)),grp=[[],[],[],[],[],[]];ELL.forEach((e,i)=>grp[(e[7]?3:0)+(i%3)].push(e));
+      grp.forEach((L,k)=>{if(!L.length)return;const im=new THREE.InstancedMesh(k>2?RBL[k-3]:RB[k],RM[k%3],L.length);
+        L.forEach((e,i)=>{_dm.position.set(e[0],e[1],e[2]);_dm.rotation.set(0,e[6],0);_dm.scale.set(e[3],e[4],e[5]);_dm.updateMatrix();im.setMatrixAt(i,_dm.matrix);im.setColorAt(i,_dc.setScalar(.62+.38*Math.random()))});
+        im.instanceColor.needsUpdate=true;im.frustumCulled=false;g.add(im)})}
+    /* pilar: profil lathe (kaki melebar, pinggang menyempit, noise) seperti pillar() dunia atas; yang tinggi menyambung ke atap */
+    {const CG=[1,2,3,4].map(sd=>{const pts=[],n=16;for(let i=0;i<=n;i++){const f=i/n;pts.push(new THREE.Vector2(Math.max(.45,(1+.9*Math.pow(1-f,4)+.5*Math.pow(f,5))*(1+.14*Math.sin(f*9+sd))*(1-.18*Math.sin(f*Math.PI))),f))}
+        const cg=new THREE.LatheGeometry(pts,14),p=cg.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),d=1+.12*rockNoise(x*2,y*14,z*2,sd);p.setXYZ(i,x*d,y,z*d)}cg.computeVertexNormals();return cg}),G=[[],[],[],[]];
+      PIL.forEach((p,i)=>G[i%4].push(p));
+      G.forEach((L,k)=>{if(!L.length)return;const im=new THREE.InstancedMesh(CG[k],RM[k%3],L.length);
+        L.forEach((p,i)=>{const h=p[4]-p[1]+3;_dm.position.set(p[0],p[1]-3,p[2]);_dm.rotation.set(0,i*1.7,0);_dm.scale.set(p[3],h,p[3]);_dm.updateMatrix();im.setMatrixAt(i,_dm.matrix);im.setColorAt(i,_dc.setScalar(.6+.4*((i*37%10)/10)))});
+        im.instanceColor.needsUpdate=true;im.frustumCulled=false;g.add(im)})}
+    /* kerikil dasar (tanpa hitbox) */
+    {const RBS=[5,6,7].map(sd=>mkRock(sd,10,8));for(let k=0;k<3;k++){const L=[];for(let i=0;i<90;i++){const x=rnd(10-B,B-10),z=rnd(10-B,B-10);if(Math.hypot(x,z)<10||nearTun(x,z,7))continue;L.push([x,z,rnd(.3,1.3),rnd(0,6.28)])}
+      const im=new THREE.InstancedMesh(RBS[k],RM[k],L.length);L.forEach((q,i)=>{const sz=q[2];_dm.position.set(q[0],gh(q[0],q[1])+sz*.2,q[1]);_dm.rotation.set(0,q[3],0);_dm.scale.set(sz*1.2,sz*.7,sz);_dm.updateMatrix();im.setMatrixAt(i,_dm.matrix);im.setColorAt(i,_dc.setScalar(.55+.45*Math.random()))});
+      im.instanceColor.needsUpdate=true;im.frustumCulled=false;g.add(im)}}
     /* flora bercahaya (penunjuk arah) */
     {const cg=new THREE.ConeGeometry(1,1,6);cg.translate(0,.5,0);const FN=320,fi=new THREE.InstancedMesh(cg,new THREE.MeshBasicMaterial({color:0xffffff}),FN),cc=[0x36f2d4,0x9b6bff,0xff6bd6,0x5cb8ff];
-      for(let i=0;i<FN;i++){let x,z;if(i%3===0){const c=DEEP.caves[i%DEEP.caves.length],a=rnd(0,6.28),r=rnd(0,7);x=c.x+Math.cos(a)*r;z=c.z+Math.sin(a)*r}else{x=rnd(8-B,B-8);z=rnd(8-B,B-8)}
+      for(let i=0;i<FN;i++){let x,z;if(i%3===0){const c=DEEP.caves[i%DEEP.caves.length],a=rnd(0,6.28),r=rnd(0,7);x=c.x+Math.cos(a)*r;z=c.z+Math.sin(a)*r}else if(i%7===1){const q=DSH[i%DSH.length],a=rnd(0,6.28),r=rnd(0,q[2]*.8);x=q[0]+Math.cos(a)*r;z=q[1]+Math.sin(a)*r}else{x=rnd(8-B,B-8);z=rnd(8-B,B-8)}
         _dm.position.set(x,gh(x,z)-.1,z);_dm.rotation.set(rnd(-.25,.25),0,rnd(-.25,.25));_dm.scale.set(rnd(.08,.2),rnd(.5,1.6),rnd(.08,.2));_dm.updateMatrix();fi.setMatrixAt(i,_dm.matrix);fi.setColorAt(i,_dc.setHex(cc[i%4]))}
       fi.instanceColor.needsUpdate=true;fi.frustumCulled=false;g.add(fi)}
     /* lampu flora penunjuk arah di lantai terowongan */
@@ -2527,15 +2556,37 @@ function buildDeep(){if(DEEP.built)return;DEEP.built=true;dtInit();
       const li=new THREE.InstancedMesh(cg,new THREE.MeshBasicMaterial({color:0xffffff}),L.length);
       L.forEach((q,i)=>{_dm.position.set(q[0],q[1],q[2]);_dm.rotation.set(0,0,0);_dm.scale.set(.22,q[3],.22);_dm.updateMatrix();li.setMatrixAt(i,_dm.matrix);li.setColorAt(i,_dc.setHex(cc[i%4]))});
       li.instanceColor.needsUpdate=true;li.frustumCulled=false;g.add(li)}
-    /* portal cahaya + pelampung tambatan tali */
-    {const disc=new THREE.Mesh(new THREE.CircleGeometry(7,32),new THREE.MeshBasicMaterial({color:0x9fe8ff,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,fog:false}));
-      disc.rotation.x=-Math.PI/2;disc.position.set(0,DEEP.TOP+.2,0);g.add(disc);
-      const sh=new THREE.Mesh(new THREE.CylinderGeometry(6,10,34,24,1,true),new THREE.MeshBasicMaterial({color:0x6fd6ff,transparent:true,opacity:.1,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
-      sh.position.set(0,DEEP.TOP-16.8,0);g.add(sh);
-      const bu=new THREE.Mesh(new THREE.SphereGeometry(.55,14,10),new THREE.MeshBasicMaterial({color:0xff7a1a}));bu.position.copy(DEEP.anchor);g.add(bu)}
-    /* langit-langit: permukaan air dilihat dari bawah (gelap, berlubang di portal) */
-    {const ce=new THREE.Mesh(new THREE.RingGeometry(7,260,48,1),new THREE.MeshBasicMaterial({color:0x0b3140,side:THREE.DoubleSide}));
-      ce.rotation.x=-Math.PI/2;ce.position.set(0,DEEP.TOP+.1,0);ce.frustumCulled=false;g.add(ce)}
+    /* cerobong batu naik ke permukaan: kapal asli di atas, jangkar asli + tali tambat di bawah, atap batu berlubang di cerobong */
+    {const TOP=DEEP.TOP,SURF=TOP+40,CH=SURF-TOP+1,rk=(x,y,z,sd)=>rockNoise(x,y,z,sd);DEEP.SURF=SURF;
+      const chg=new THREE.CylinderGeometry(13,8,CH,30,16,true),cp=chg.attributes.position,ccl=new Float32Array(cp.count*3);
+      for(let i=0;i<cp.count;i++){const x=cp.getX(i),y=cp.getY(i),z=cp.getZ(i),f=(y+CH/2)/CH,a=Math.atan2(z,x),n=rk(Math.cos(a)*3,y*.22,Math.sin(a)*3,4.2),r0=Math.hypot(x,z),k=(r0+(.2+.8*Math.min(1,f*3))*n*1.7)/r0,sh=.62+.38*Math.abs(Math.sin(n*2+f*5));
+        cp.setXYZ(i,x*k,y,z*k);ccl[i*3]=.30*sh;ccl[i*3+1]=.33*sh;ccl[i*3+2]=.37*sh}
+      chg.setAttribute('color',new THREE.BufferAttribute(ccl,3));chg.computeVertexNormals();
+      const chm=new THREE.Mesh(chg,M(0xffffff,{vertexColors:true,side:THREE.DoubleSide}));chm.position.y=TOP-1+CH/2;chm.frustumCulled=false;g.add(chm);
+      /* atap batu (hanya menonjol ke atas dari TOP supaya tidak menembus ruang renang) */
+      const cg=new THREE.RingGeometry(8,300,48,70);cg.rotateX(-Math.PI/2);const rp=cg.attributes.position,rcl=new Float32Array(rp.count*3);
+      for(let i=0;i<rp.count;i++){const x=rp.getX(i),z=rp.getZ(i),r=Math.hypot(x,z),k=Math.min(1,Math.max(0,(r-8)/24)),n=rk(x*.09,0,z*.09,2.4)+.6*rk(x*.31,0,z*.27,5.1),sh=.6+.4*Math.abs(Math.sin(n*1.7+x*.05));
+        rp.setY(i,TOP+.05+k*k*(3-2*k)*Math.max(0,3+2.2*n));rcl[i*3]=.28*sh;rcl[i*3+1]=.31*sh;rcl[i*3+2]=.35*sh}
+      cg.setAttribute('color',new THREE.BufferAttribute(rcl,3));cg.computeVertexNormals();
+      const cem=new THREE.Mesh(cg,M(0xffffff,{vertexColors:true,side:THREE.DoubleSide}));cem.frustumCulled=false;g.add(cem);
+      /* permukaan air dilihat dari bawah + kapal (klon model kapal dunia atas) */
+      const stx=mkTexC(256,256,(x,w,h)=>{x.fillStyle='#8fe6ff';x.fillRect(0,0,w,h);
+        for(let i=0;i<60;i++){const bx=Math.random()*w,by=Math.random()*h,r=10+Math.random()*28;for(const ox of[-w,0,w])for(const oy of[-h,0,h]){const cx=bx+ox,cy=by+oy,gr=x.createRadialGradient(cx,cy,0,cx,cy,r);gr.addColorStop(0,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=gr;x.fillRect(cx-r,cy-r,2*r,2*r)}}});
+      stx.repeat.set(10,10);
+      const sf=new THREE.Mesh(new THREE.CircleGeometry(170,40),new THREE.MeshBasicMaterial({map:stx,color:0xc8f6ff,fog:false,side:THREE.DoubleSide}));sf.rotation.x=-Math.PI/2;sf.position.y=SURF;sf.frustumCulled=false;g.add(sf);
+      const bg=new THREE.Group();bg.add(boatM.clone(true));bg.position.set(0,SURF,0);bg.rotation.y=BOAT.yaw;g.add(bg);
+      const sh=new THREE.Mesh(new THREE.CylinderGeometry(11,7,SURF-TOP,24,1,true),new THREE.MeshBasicMaterial({color:0x6fd6ff,transparent:true,opacity:.1,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+      sh.position.set(0,(TOP+SURF)/2,0);g.add(sh);
+      /* jangkar asli (model & tekstur logam dunia atas) tergantung di mulut cerobong, tali tebal bertekstur ke kapal */
+      const ac=aG.clone(true);ac.position.set(0,DEEP.anchor.y-1.75,0);ac.rotation.set(0,0,0);ac.scale.setScalar(AS*2.4);g.add(ac);
+      {const pts=[];for(let i=0;i<=12;i++){const f=i/12,sw=Math.sin(f*Math.PI)*.25;pts.push(new THREE.Vector3(Math.sin(f*6)*sw,DEEP.anchor.y+.2+f*(SURF-.2-DEEP.anchor.y-.2),Math.cos(f*5)*sw))}
+        const tx=ROPETEX.clone();tx.needsUpdate=true;tx.repeat.set(70,1);
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,.14,6,false),new THREE.MeshBasicMaterial({map:tx,color:0xe0b888})))}
+      /* salju laut: partikel melayang di sekitar pemain */
+      const N=420,pa=new Float32Array(N*3),sd=[];for(let i=0;i<N;i++)sd.push([rnd(0,40),rnd(0,40),rnd(0,40)]);
+      const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(pa,3));
+      const sp=new THREE.Points(sg,new THREE.PointsMaterial({map:BUTEX,color:0xbfe8f0,size:.16,transparent:true,opacity:.55,depthWrite:false,alphaTest:.02}));sp.frustumCulled=false;g.add(sp);
+      DEEP.amb={tex:stx,boat:bg,snow:{pa,sd,sp}}}
     /* stalaktit gantung di atap gua (hitbox silinder dengan bot) */
     {const SN=DEEP.caves.length*16,sg=new THREE.ConeGeometry(1,1,7);sg.translate(0,-.5,0);const si=new THREE.InstancedMesh(sg,M(0x4a545e),SN);let n=0;
       for(const c of DEEP.caves)for(let k=0;k<16;k++){const a=rnd(0,6.2832),d=rnd(1.5,10.5),x=c.x+Math.cos(a)*d,z=c.z+Math.sin(a)*d,len=rnd(1.8,5.2),rad=rnd(.3,.75),top=c.y+8.9-(10.5-d)*.04;
@@ -2595,8 +2646,15 @@ function deepFauna(dt){const T=dClock();
       for(let k=0;k<36;k++){const f=s.f[k];_dm.position.set(cx+f[0]+Math.sin(T*2+f[3])*.4,cy+f[1]+Math.sin(T*3+f[3])*.3,cz+f[2]+Math.cos(T*2+f[3])*.4);_dm.rotation.set(0,hd,0);_dm.scale.set(.09,.07,.22);_dm.updateMatrix();L.im.setMatrixAt(n++,_dm.matrix)}}
     L.im.instanceMatrix.needsUpdate=true}}
 
+/* suasana: riak permukaan, kapal mengapung, salju laut */
+function deepAmb(dt){const A=DEEP.amb;if(!A)return;const T=dClock();
+  A.tex.offset.set(T*.012,T*.008);A.boat.position.y=DEEP.SURF+Math.sin(T*1.1)*.18;A.boat.rotation.z=Math.sin(T*.9)*.025;A.boat.rotation.x=Math.sin(T*.7+1)*.02;
+  const pa=A.snow.pa,sd=A.snow.sd,w=v=>((v%40)+40)%40-20;
+  for(let i=0;i<sd.length;i++){pa[i*3]=pos.x+w(sd[i][0]-pos.x+T*.1);pa[i*3+1]=pos.y+w(sd[i][1]-pos.y-T*.16);pa[i*3+2]=pos.z+w(sd[i][2]-pos.z+T*.07)}
+  A.snow.sp.geometry.attributes.position.needsUpdate=true}
+
 /* ===== tali: breadcrumb dari pelampung ke pemain; simpul didorong keluar dari objek (hitbox) + dasar, ditarik lurus agar membelit tikungan; kembali = ikuti tali ===== */
-const LRS=[.25,.5,.75],LROPE={on:false,P:[],O:[],SEG:1.4,MAX:220,mesh:null,fr:0,warn:0},lrMat=new THREE.MeshBasicMaterial({color:0xff9a2e}),_lm=new THREE.Vector3(),_lm0=new THREE.Vector3();
+const LRS=[.25,.5,.75],LROPE={on:false,P:[],O:[],SEG:1.4,MAX:220,mesh:null,fr:0,warn:0},LRTEX=ROPETEX.clone(),lrMat=new THREE.MeshBasicMaterial({map:LRTEX,color:0xffc890}),_lm=new THREE.Vector3(),_lm0=new THREE.Vector3();
 function lrPush(p,rr){let hit=false;
   for(const o of dgNear(p.x,p.z)){
     if(o.e){const ex=o.rx+rr,ey=o.ry+rr,ez=o.rz+rr;let nx=(p.x-o.x)/ex,ny=(p.y-o.y)/ey,nz=(p.z-o.z)/ez,l=Math.sqrt(nx*nx+ny*ny+nz*nz);
@@ -2611,7 +2669,7 @@ function lrToggle(){if(!DEEP.on||state!=='play')return;
   if(pos.distanceTo(DEEP.anchor)>9){toast('Dekati pelampung untuk memasang tali','sad');return}
   LROPE.on=true;LROPE.P=[DEEP.anchor.clone()];LROPE.O=[new THREE.Vector3()];toast('Tali terpasang di pelampung & dirimu · T lepas','gold')}
 function lrBuild(){const pts=LROPE.P.map((p,i)=>{const d=p.clone(),o=LROPE.O[i];if(o)d.add(o);if(i>0)lrPush(d,.1);return d});pts.push(_lm.clone());if(pts.length<2){lrHide();return}
-  const geo=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,false,'catmullrom',.3),Math.min(500,pts.length*3),.05,5,false);
+  const geo=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,false,'catmullrom',.3),Math.min(500,pts.length*3),.065,6,false);LRTEX.repeat.x=Math.max(2,pts.length*LROPE.SEG/.8);
   if(!LROPE.mesh){LROPE.mesh=new THREE.Mesh(geo,lrMat);LROPE.mesh.frustumCulled=false;S.add(LROPE.mesh)}else{LROPE.mesh.geometry.dispose();LROPE.mesh.geometry=geo}LROPE.mesh.visible=true}
 function lrStep(dt){if(!LROPE.on||state!=='play'||dt<=0){if(!LROPE.on)lrHide();return}
   const P=LROPE.P;_lm.set(pos.x,pos.y-.45,pos.z);
@@ -2674,7 +2732,7 @@ function deepCompass(){const on=DEEP.on&&state==='play';if(DCOMP.style.display!=
 function startDeepDive(){if(DEEP.busy||DEEP.on||state!=='play')return;DEEP.busy=true;
   fade(1,900).then(()=>{buildDeep();anchorReset();DEEP.dusk=true;DEEP.pending=true;DEEP.fo=false;startCut();return fade(0,900)})}
 function deepArrive(){const D=PG.deep||(PG.deep={dives:0,seen:{}});D.dives++;saveP();DEEP.pending=false;DEEP.on=true;DEEP.g.visible=true;DEEP.dusk=false;DEEP.fo=false;
-  pos.set(0,DEEP.TOP-9,.0001);vel.set(0,0,0);yaw=0;pitch=-.1;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);wx.above=false;lrClear();
+  pos.set(0,DEEP.TOP-9,.0001);vel.set(0,0,0);yaw=0;pitch=.25;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);wx.above=false;lrClear();
   fade(1,0);setTimeout(()=>{fade(0,2200).then(()=>{DEEP.busy=false})},60);
   toast('Laut Dalam · gelap sekali'+(PG.up.flash?' · L: senter':' · senter dijual di Toko (I)'),'gold');setTimeout(()=>toast('T di dekat pelampung: pasang tali agar tidak tersesat','gold'),2600)}
 function exitDeep(){if(DEEP.busy||!DEEP.on)return;DEEP.busy=true;dmSave();
@@ -2683,10 +2741,14 @@ function exitDeep(){if(DEEP.busy||!DEEP.on)return;DEEP.busy=true;dmSave();
 function deepReset(){DEEP.on=DEEP.pending=DEEP.dusk=DEEP.busy=false;DEEP.g.visible=false;lrClear();fade(0,0)}
 const nearPortal=()=>DEEP.on&&pos.y>DEEP.TOP-3.2&&Math.hypot(pos.x,pos.z)<6;
 function deepTip(){return nearPortal()?'Tekan E untuk naik ke kapal':LROPE.on?'Tali terpasang · T lepas · ikuti tali untuk kembali':pos.distanceTo(DEEP.anchor)<9?'T: pasang tali ke dirimu (tambat di pelampung) · M: ukuran peta':'Laut Dalam · ikuti tali/kompas untuk pulang · M: ukuran peta'}
+/* sembunyikan seluruh dunia atas (dasar laut, karang, batu, kapal) selama di laut dalam; objek multiplayer & tali ditandai userData.keep */
+const DHID=new Set();
+function deepWorld(){if(DEEP.on){for(const o of S.children){if(o===DEEP.g||o===cam||o===sun.target||o===LROPE.mesh||o.isLight||(o.userData&&o.userData.keep))continue;if(o.visible){o.visible=false;DHID.add(o)}}}
+  else if(DHID.size){for(const o of DHID)o.visible=true;DHID.clear()}}
 function deepStep(dt){
   deepCompass();dmStep();
   if(DEEP.on){S.background.setHex(0x010509);S.fog.color.setHex(0x010509);S.fog.density=.05;HEMI.intensity=.5;sun.intensity=0;if(RY)RY.visible=false;SURGE.set(0,0,0);STM.dmg=0;STM.far=0;wx.above=false;
-    if(DEEP.built){deepFauna(dt);if(state==='play'&&dt>0&&dt<.2&&!DEEP.busy){DEEP.cur(pos.x,pos.y,pos.z,dClock(),_dcv);const k=(nearTun(pos.x,pos.z,6)?.35:1)*dt*.9;vel.x+=_dcv.x*k;vel.y+=_dcv.y*k;vel.z+=_dcv.z*k;
+    if(DEEP.built){deepFauna(dt);deepAmb(dt);if(state==='play'&&dt>0&&dt<.2&&!DEEP.busy){DEEP.cur(pos.x,pos.y,pos.z,dClock(),_dcv);const k=(nearTun(pos.x,pos.z,6)?.35:1)*dt*.9;vel.x+=_dcv.x*k;vel.y+=_dcv.y*k;vel.z+=_dcv.z*k;
       if(!DEEP.cw&&_dcv.length()>.8){DEEP.cw=1;toast('Arus kuat mendorongmu · tali membantu tetap di jalur','gold')}}}
     lrStep(dt)}
   else if(DEEP.dusk){S.background.lerp(_dk,.6);S.fog.color.copy(S.background);HEMI.intensity*=.5;sun.intensity*=.4;
@@ -2725,7 +2787,7 @@ function sunFx(t){const on=HQ()&&wx.above&&state!=='menu'&&skyM.material&&WX.k<.
   FXU.uSP.value.set(_fv.x*cam.aspect,_fv.y);FXU.uAsp.value=cam.aspect;FXU.uT.value=t;
   FXU.uK.value=edge*Math.min(1,f*3)*(1-WX.k*.9)*(UL()?1:.8);return FXU.uK.value>.01}
 let last=performance.now();
-function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);followSun();R.clear();
+function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);deepWorld();followSun();R.clear();
   const skyOn=!!wx.above,bgS=S.background;
   if(skyOn){const ul=UL();skyM.visible=!ul;CLD.mesh.visible=true;GHM.visible=ul;GHM.position.copy(cam.position);GHM.material.uniforms.uT.value=t;GHM.material.uniforms.uS.value=WX.k;
     CCAM.fov=cam.fov;CCAM.aspect=cam.aspect;CCAM.updateProjectionMatrix();CCAM.position.copy(cam.position);CCAM.quaternion.copy(cam.quaternion);CCAM.updateMatrixWorld();R.getDrawingBufferSize(SKYB);{const ps=Math.max(3,Math.round(SKYB.y/220)),w=Math.ceil(SKYB.x/ps),h=Math.ceil(SKYB.y/ps);if(SKYRT.width!==w||SKYRT.height!==h)SKYRT.setSize(w,h);
@@ -2871,10 +2933,10 @@ const nameTex=n=>{const c=document.createElement('canvas');c.width=256;c.height=
   x.font='bold 30px sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=6;x.strokeStyle='rgba(0,0,0,.6)';
   x.strokeText(n,128,32);x.fillStyle='#fff';x.fillText(n,128,32);return new THREE.CanvasTexture(c)};
 function addRP(id,name){
-  const r=cloneRig();S.add(r.g);
-  const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:nameTex(name),transparent:true,depthTest:false}));tag.scale.set(2,.5,1);tag.renderOrder=9;S.add(tag);
+  const r=cloneRig();r.g.userData.keep=1;S.add(r.g);
+  const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:nameTex(name),transparent:true,depthTest:false}));tag.scale.set(2,.5,1);tag.renderOrder=9;tag.userData.keep=1;S.add(tag);
   const o={id,r,tag,tg:new THREE.Vector3(),cur:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,spd:0,ph:0,lean:0,first:true,d:0,rope:null,rm:null};
-  o.gl=new THREE.Sprite(new THREE.SpriteMaterial({map:DGLOW,color:0xffc070,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));o.gl.scale.set(3,3,1);o.gl.visible=false;S.add(o.gl);
+  o.gl=new THREE.Sprite(new THREE.SpriteMaterial({map:DGLOW,color:0xffc070,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));o.gl.scale.set(3,3,1);o.gl.visible=false;o.gl.userData.keep=1;S.add(o.gl);
   RP.set(id,o);return o}
 function dropRope(o){if(o.rm){S.remove(o.rm);o.rm.geometry.dispose();o.rm=null}o.rope=null}
 function delRP(id){const o=RP.get(id);if(!o)return;dropRope(o);S.remove(o.gl);o.gl.material.dispose();S.remove(o.r.g);S.remove(o.tag);o.tag.material.map.dispose();o.tag.material.dispose();RP.delete(id)}
@@ -2909,10 +2971,10 @@ function rpLoop(now){
 requestAnimationFrame(rpLoop);
 function kick(){toast('Host keluar. Ruang ditutup.','sad');closeModes();q('home').click()}
 const prevP=new Map();
-const rpMat=new THREE.MeshBasicMaterial({color:0x5cc8ff});
+const RPTEX=ROPETEX.clone(),rpMat=new THREE.MeshBasicMaterial({map:RPTEX,color:0x8fd8ff});RPTEX.repeat.set(40,1);
 function onRope(p){const o=p&&RP.get(p.i);if(!o||!Array.isArray(p.a))return;dropRope(o);if(p.a.length<6)return;
   const pts=[],pr=[];for(let i=0;i+2<p.a.length;i+=3){pts.push(new THREE.Vector3(p.a[i],p.a[i+1],p.a[i+2]));pr.push([p.a[i],p.a[i+2]])}
-  o.rope=pr;o.rm=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,false,'catmullrom',.3),Math.min(400,pts.length*3),.05,5,false),rpMat);o.rm.frustumCulled=false;o.rm.visible=false;S.add(o.rm)}
+  o.rope=pr;o.rm=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,false,'catmullrom',.3),Math.min(400,pts.length*3),.05,5,false),rpMat);o.rm.frustumCulled=false;o.rm.visible=false;o.rm.userData.keep=1;S.add(o.rm)}
 window.__deepPeers=()=>{const a=[];for(const o of RP.values())if(o.d)a.push(o);return a};
 function onPres(list){
   const ids=new Set(list.map(x=>x.id));let h=false;

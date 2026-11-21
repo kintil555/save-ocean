@@ -74,3 +74,10 @@ Kode: blok `/* ===== LAUT DALAM` di `index.html` (sebelum `/* HIGH/ULTRA: glow m
 - [ ] Gua: ruang rahasia; percabangan lorong.
 - [ ] Cutscene masuk: kapal saat `dusk` masih langit biasa; tambah awan gelap/hujan, narasi, suara.
 - [ ] Ultra: ghostPass/refraksi & caustics belum disetel untuk zona dalam.
+
+## Putaran 4 (laut dalam dirombak; diuji headless Chrome: render, tali T, keluar-masuk OK)
+- Dunia atas disembunyikan selama `DEEP.on` (`deepWorld()` di `loop`; objek multiplayer bertanda `userData.keep`). Sebelumnya dasar laut atas terlihat lewat lubang portal.
+- Cerobong batu -> permukaan air (tekstur riak) + klon kapal asli (`boatM.clone`) di atasnya; jangkar asli (`aG.clone`) tergantung di mulut cerobong + tali `ROPETEX` ke kapal. Bola oranye dihapus. Atap batu bergelombang menggantikan cincin datar.
+- Medan: 6 lubang (`DSH`) sampai ~-140 m, 3 dataran tinggi (`DMS`), warna lantai sedimen/batu menurut kemiringan, 5 lengkung batu (`dArch` inline di `buildDeep`), 36 pilar lathe (sepertiga menyambung ke atap), kerikil, salju laut.
+- Batu memakai `RB`/`RM` dunia atas (bukan material baru); tali pemain & tali peer memakai `ROPETEX`.
+- TODO: setel kecerahan/kabut di browser asli (sekarang sangat gelap tanpa senter), uji FPS HP, sinkron tata letak lama di minimap lokal (`selamatkanLautMap` lama tidak cocok medan baru; hapus key itu).
