@@ -579,7 +579,7 @@ function tunnel(cx,cz,ang,N){const R=rnd(6.5,8.5),r=rnd(2,2.7),Zs=N*rnd(.9,1.3)+
   const L=Zl-r*.3;for(const [xa,xb,yv] of [[-.4,.4,.917],[.4,.7,.714],[-.7,-.4,.714],[.7,.9,.436],[-.9,-.7,.436]]){const a=w(xa*Rr,-L),b=w(xb*Rr,L);
     OB.push({x0:Math.min(a[0],b[0]),x1:Math.max(a[0],b[0]),z0:Math.min(a[1],b[1]),z1:Math.max(a[1],b[1]),y0:base+yv*Rr-.3,y1:base+R+r+.4})}
   for(let i=0;i<5;i++){const a=rnd(0,6.283),d=rnd(R+r+2,R+r+7);boulder(cx+Math.cos(a)*d,cz+Math.sin(a)*d,rnd(.9,2.2))}}
-function collide(){PL.gnd=false;if(DEEP.on&&pos.y>DEEP.TOP){pos.y=DEEP.TOP;if(vel.y>0)vel.y=0}const L=PL.lean,cl=Math.cos(L),sl=Math.sin(L),sy=Math.sin(yaw),cw=Math.cos(yaw);
+function collide(){PL.gnd=false;if(DEEP.on&&pos.y>DEEP.TOP){const rr=Math.hypot(pos.x,pos.z);if(rr>6&&pos.y<=DEEP.TOP+1.5){pos.y=DEEP.TOP;if(vel.y>0)vel.y=0}else{if(rr>6){pos.x*=6/rr;pos.z*=6/rr}if(pos.y>DEEP.SURF-3){pos.y=DEEP.SURF-3;if(vel.y>0)vel.y=0}}}const L=PL.lean,cl=Math.cos(L),sl=Math.sin(L),sy=Math.sin(yaw),cw=Math.cos(yaw);
   for(const [oy,r] of PL.s){const hy=oy*cl,lz=-oy*sl,ox=lz*sy,oz=lz*cw;
     for(const o of (DEEP.on?DOB:OB)){const cx=pos.x+ox,cy=pos.y+hy,cz=pos.z+oz;
       if(o.r){if(cy-r>o.top||(o.bot!==undefined&&cy+r<o.bot))continue;const dx=cx-o.x,dz=cz-o.z,d=Math.sqrt(dx*dx+dz*dz),m=o.r+r;
@@ -2739,8 +2739,8 @@ function exitDeep(){if(DEEP.busy||!DEEP.on)return;DEEP.busy=true;dmSave();
   fade(1,900).then(()=>{DEEP.on=false;DEEP.g.visible=false;lrClear();const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1]);vel.set(0,0,0);yaw=0;pitch=-.12;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);
     wx.above=null;updReef();return fade(0,900)}).then(()=>{DEEP.busy=false;toast('Kembali ke permukaan','gold')})}
 function deepReset(){DEEP.on=DEEP.pending=DEEP.dusk=DEEP.busy=false;DEEP.g.visible=false;lrClear();fade(0,0)}
-const nearPortal=()=>DEEP.on&&pos.y>DEEP.TOP-3.2&&Math.hypot(pos.x,pos.z)<6;
-function deepTip(){return nearPortal()?'Tekan E untuk naik ke kapal':LROPE.on?'Tali terpasang · T lepas · ikuti tali untuk kembali':pos.distanceTo(DEEP.anchor)<9?'T: pasang tali ke dirimu (tambat di pelampung) · M: ukuran peta':'Laut Dalam · ikuti tali/kompas untuk pulang · M: ukuran peta'}
+const nearPortal=()=>DEEP.on&&pos.y>DEEP.SURF-8&&Math.hypot(pos.x,pos.z)<7;
+function deepTip(){return nearPortal()?'Tekan E untuk naik ke kapal':LROPE.on?'Tali terpasang · T lepas · ikuti tali untuk kembali':pos.distanceTo(DEEP.anchor)<9?'T: pasang tali ke dirimu (tambat di jangkar) · berenang naik lewat cerobong ke kapal · M: ukuran peta':'Laut Dalam · ikuti tali/kompas untuk pulang · M: ukuran peta'}
 /* sembunyikan seluruh dunia atas (dasar laut, karang, batu, kapal) selama di laut dalam; objek multiplayer & tali ditandai userData.keep */
 const DHID=new Set();
 function deepWorld(){if(DEEP.on){for(const o of S.children){if(o===DEEP.g||o===cam||o===sun.target||o===LROPE.mesh||o.isLight||(o.userData&&o.userData.keep))continue;if(o.visible){o.visible=false;DHID.add(o)}}}
