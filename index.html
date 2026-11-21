@@ -157,7 +157,7 @@ button.tile{cursor:pointer}button.tile:hover{filter:brightness(1.05)}
 #mStage>*{position:absolute;left:50%;bottom:8%;transform-origin:50% 100%}
 #mShadow{width:60%;height:7%;margin-left:-30%;border-radius:50%;background:#021b3a;opacity:.3;bottom:21%!important;animation:msh 1.6s 3.6s ease-in-out infinite}
 @keyframes msh{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.8)}}
-#mSq{width:20%;height:20%;margin-left:-10%;border-radius:12%;background:#eb5942;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18);animation:msq 3.1s cubic-bezier(.3,.7,.4,1) both}
+#mSq{will-change:transform,opacity;width:20%;height:20%;margin-left:-10%;border-radius:12%;background:#eb5942;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18);animation:msq 3.1s cubic-bezier(.3,.7,.4,1) both}
 @keyframes msq{
 0%{transform:translateY(40%) scale(0)}
 8%{transform:scale(1)}
@@ -175,9 +175,9 @@ button.tile{cursor:pointer}button.tile:hover{filter:brightness(1.05)}
 90%,100%{transform:scale(4.6);opacity:0}}
 #mWrap{width:100%;margin-left:-50%;height:100%;bottom:0!important;animation:midle 1.5s 3.7s ease-in-out infinite}
 @keyframes midle{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-7%) rotate(-3deg) scale(.98,1.03)}50%{transform:translateY(0) rotate(0) scale(1.04,.96)}75%{transform:translateY(-4%) rotate(3deg)}}
-.pt{position:absolute;left:0;bottom:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;opacity:0;filter:drop-shadow(0 6px 0 rgba(2,27,58,.22))}
+.pt{will-change:transform,opacity;position:absolute;left:0;bottom:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;opacity:0;filter:drop-shadow(0 6px 0 rgba(2,27,58,.22))}
 #mBody{transform-origin:50% 100%;animation:mpop .5s 2.5s cubic-bezier(.3,1.6,.5,1) both,mbreath 1.6s 4.2s ease-in-out infinite}
-@keyframes mpop{0%{opacity:1;transform:scale(.25,.2)}100%{opacity:1;transform:scale(1)}}
+@keyframes mpop{0%{opacity:0;transform:scale(.25,.2)}15%{opacity:1}100%{opacity:1;transform:scale(1)}}
 @keyframes mbreath{0%,100%{transform:scale(1)}50%{transform:scale(1.03,.97)}}
 #mEyes{transform-origin:50% 36%;animation:meye .35s 3.05s cubic-bezier(.3,1.8,.5,1) both,mblink 3s 4.2s infinite}
 @keyframes meye{0%{opacity:1;transform:scale(0)}100%{opacity:1;transform:scale(1)}}
@@ -224,14 +224,20 @@ button.tile{cursor:pointer}button.tile:hover{filter:brightness(1.05)}
 </div>
 <script>
 (()=>{const I=document.getElementById('intro'),F=document.getElementById('ifill'),T=document.getElementById('itxt');
-const t0=performance.now(),MIN=5400;let p=0,gone=false;
+const t0=performance.now(),MIN=5400,PLAY=4600;let p=0,gone=false,started=false;
 const set=(v,t)=>{p=Math.max(p,v);F.style.transform='scaleX('+p+')';if(t)T.textContent=t};
 const hide=()=>{if(gone)return;gone=true;I.classList.add('out');setTimeout(()=>I.remove(),700)};
+const raf2=f=>requestAnimationFrame(()=>requestAnimationFrame(f));
+/* skrip berat game ditunda sampai animasi intro sempat tampil */
+function start(){if(started)return;started=true;set(.6,'Menyiapkan dunia...');
+  setTimeout(()=>{
+    document.querySelectorAll('script[data-defer]').forEach(o=>{const n=document.createElement('script');n.textContent=o.textContent;o.replaceWith(n)});
+    set(.9,'Kompilasi shader...');
+    raf2(()=>{set(1,'Siap!');setTimeout(hide,Math.max(300,MIN-(performance.now()-t0)))})
+  },80)}
 set(.12,'Memuat aset...');
-document.addEventListener('DOMContentLoaded',()=>set(.5,'Menyiapkan dunia...'));
-window.addEventListener('load',()=>{set(.82,'Kompilasi shader...');
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{set(1,'Siap!');setTimeout(hide,Math.max(300,MIN-(performance.now()-t0)))}))});
-setTimeout(hide,20000);
+window.addEventListener('load',()=>{set(.4,'Memuat pustaka 3D...');setTimeout(start,Math.max(150,PLAY-(performance.now()-t0)))});
+setTimeout(start,12000);setTimeout(hide,30000);
 })();
 </script>
 
@@ -328,7 +334,7 @@ setTimeout(hide,20000);
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script>
+<script type="text/plain" data-defer>
 /* ===== SEED: ocean identik untuk semua pemain ===== */
 const WORLD_SEED=20261120;
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -2259,7 +2265,7 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);fo
   {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
 meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
 </script>
-<script>
+<script type="text/plain" data-defer>
 /* ===== ONLINE: Discord login + Supabase save + mode card ===== */
 (()=>{
 /* ISI dua nilai ini dari Supabase > Project Settings > API (anon key aman dipublikasikan, RLS yang menjaga data) */
