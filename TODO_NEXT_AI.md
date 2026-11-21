@@ -57,12 +57,19 @@ Kode: blok `/* ===== LAUT DALAM` di `index.html` (sebelum `/* HIGH/ULTRA: glow m
 - Kompas HUD (panah + jarak ke pelampung) saat di zona dalam.
 - Progres: `PG.deep={dives,seen}`; 7 spesies, toast "Spesies baru" saat didekati, tersimpan lewat `saveP()`.
 
+## Putaran 3 (belum diuji di browser; geometri diuji di Node)
+- Terowongan panjang: 3 lorong berkelok (137/122/137 m) antar pintu gua (`DTUN`, `dtInit`). Lantai diratakan di `DEEP.gh`, dinding+atap = elipsoid dengan hitbox, lampu flora di lantai, ubur-ubur kecil + 3 anglerfish tetap (`fix`) di dalamnya. Batu/pilar acak dibuang dekat lorong (`nearTun`). Jarak aman ke batu gua >=7 m, antar lorong >=26 m (diuji Node).
+- Tali ikut arus: `DEEP.cur(x,y,z,T,out)` (jam bersama `dClock()`), tiap simpul punya offset `LROPE.O` yang mengejar arus (maks 2.2 m, ujung tali tetap), titik render didorong keluar hitbox (`lrPush`). Fisika simpul `P` (jalur pulang) tidak berubah. Pemain TIDAK terdorong arus.
+- Peta mini (kiri bawah, M = besar/kecil): lantai + lorong + gua, kabut peta terbuka saat dijelajahi (disimpan lokal `selamatkanLautMap`), tali sendiri (oranye) + tali pemain lain (biru), pelampung, panah pemain, pemain lain.
+- Multiplayer laut dalam: tombol tidak lagi disembunyikan. Pesan `p` kini membawa `d` (1 = di zona dalam); avatar hanya terlihat bila zona sama (+ cahaya kecil di gelap). Hewan memakai jam bersama `dClock()` sehingga posisinya sama di semua klien. Tali dikirim lewat event baru `rp` (tiap simpul ke-2, ~1.2 dtk bila berubah). WORKER HARUS DI-DEPLOY ULANG (whitelist `d` + event `rp`).
+- Kompas HUD sudah diverifikasi secara matematis (tanda rotasi benar).
+
 ## TODO
-- [ ] UJI DI BROWSER: console bersih, urutan fade/cutscene, skip cutscene (klik/Spasi) tetap masuk zona dalam, tombol Laut Dalam di menu kapal, E/T berfungsi, FPS di Low/Medium/High/Ultra, kompas arah benar (cek tanda rotasi), stalaktit tidak menembus pemain, hewan baru tampak benar (orientasi/skala).
-- [ ] Tali: belum ikut arus; belum ada suara/gerak saat tali tertahan.
-- [ ] Hewan: belum ada flee/serang (anglerfish hanya mengejar), belum ada suara paus/sonar.
+- [ ] UJI DI BROWSER: console bersih, fade/cutscene, E/T/M, FPS (lorong menambah ~465 elipsoid, ~150k segitiga), peta tampil/ukuran, tali melambai & tidak menembus batu, 2 akun saling melihat di laut dalam + tali biru, kompas.
+- [ ] Anglerfish pengejar masih lokal per klien (tidak sinkron antar pemain); hewan lain sinkron.
+- [ ] Arus belum mendorong pemain; belum ada suara/gerak saat tali tertahan.
+- [ ] Hewan: belum ada flee/serang, belum ada suara paus/sonar.
 - [ ] Misi/ekonomi laut dalam: harta/sampah/hewan terjerat khusus, XP lebih besar, oksigen/tekanan, syarat Senter. UI koleksi spesies (`PG.deep.seen`).
-- [ ] Gua: terowongan panjang, ruang rahasia, peta mini.
-- [ ] Cutscene masuk: kapal saat `dusk` masih langit biasa (hanya diredupkan); bisa tambah awan gelap/hujan, narasi caption, suara.
+- [ ] Gua: ruang rahasia; percabangan lorong.
+- [ ] Cutscene masuk: kapal saat `dusk` masih langit biasa; tambah awan gelap/hujan, narasi, suara.
 - [ ] Ultra: ghostPass/refraksi & caustics belum disetel untuk zona dalam.
-- [ ] Multiplayer: sinkronisasi zona dalam (saat ini dinonaktifkan di mode ruang).
