@@ -2638,7 +2638,7 @@ function deepDiscover(){const D=PG.deep||(PG.deep={dives:0,seen:{}});let ch=fals
   if(ch)saveP()}
 /* peta mini: lantai + terowongan, terbuka bertahap saat dijelajahi (kabut peta disimpan lokal); M = besar/kecil */
 const DMAP={W:150,big:false,ready:false,fx:0,fz:1e9,fr:0,el:document.createElement('canvas')};
-DMAP.el.width=DMAP.el.height=150;DMAP.el.style.cssText='position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 70px);z-index:20;display:none;border:2px solid rgba(255,190,90,.8);border-radius:10px;pointer-events:none;background:#020a10';document.body.appendChild(DMAP.el);
+DMAP.el.width=DMAP.el.height=150;DMAP.el.style.cssText='width:150px;height:150px;max-width:none;max-height:none;position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 70px);z-index:20;display:none;border:2px solid rgba(255,190,90,.8);border-radius:10px;pointer-events:none;background:#020a10';document.body.appendChild(DMAP.el);
 function dmInit(){if(DMAP.ready)return;DMAP.ready=true;const S=128,mk=()=>{const c=document.createElement('canvas');c.width=c.height=S;return c};
   DMAP.base=mk();DMAP.fog=mk();DMAP.tmp=mk();const x=DMAP.base.getContext('2d'),id=x.createImageData(S,S);
   for(let j=0;j<S;j++)for(let i=0;i<S;i++){const h=DEEP.gh((i+.5)/S*2*B-B,(j+.5)/S*2*B-B),d=Math.max(0,Math.min(1,(h-(DEEP.FB-34))/42)),k=(j*S+i)*4;
@@ -2658,7 +2658,7 @@ function dmDraw(){const W=DMAP.W,g=DMAP.el.getContext('2d'),S=128,m=(px,pz)=>[(p
   for(const o of peers){const[a,b]=m(o.cur.x,o.cur.z);g.fillStyle='#5cc8ff';g.beginPath();g.arc(a,b,3,0,6.2832);g.fill()}
   const[px,py]=m(pos.x,pos.z);g.save();g.translate(px,py);g.rotate(-yaw);g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=1;g.beginPath();g.moveTo(0,-6);g.lineTo(4.5,5);g.lineTo(0,2.5);g.lineTo(-4.5,5);g.closePath();g.fill();g.stroke();g.restore()}
 function dmStep(){const on=DEEP.on&&state==='play'&&DEEP.built,el=DMAP.el;if(el.style.display!==(on?'block':'none'))el.style.display=on?'block':'none';if(!on)return;dmInit();
-  const W=DMAP.big?260:150;if(DMAP.W!==W){DMAP.W=W;el.width=el.height=W;DMAP.fr=0}
+  const W=DMAP.big?260:150;if(DMAP.W!==W){DMAP.W=W;el.width=el.height=W;el.style.width=el.style.height=W+'px';DMAP.fr=0}
   const S=128;if(Math.hypot(pos.x-DMAP.fx,pos.z-DMAP.fz)>1.2){DMAP.fx=pos.x;DMAP.fz=pos.z;const f=DMAP.fog.getContext('2d'),px=(pos.x+B)/(2*B)*S,py=(pos.z+B)/(2*B)*S,r=15/(2*B)*S,g=f.createRadialGradient(px,py,0,px,py,r);
     g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.65,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');f.fillStyle=g;f.fillRect(px-r,py-r,2*r,2*r)}
   if(++DMAP.fr%3===1)dmDraw()}
