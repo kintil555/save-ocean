@@ -482,7 +482,7 @@ function makeMeadow(cx,cz,R,count){
   geo.setAttribute('normal',new THREE.BufferAttribute(N3,3).setUsage(THREE.DynamicDrawUsage));
   geo.setAttribute('color',new THREE.BufferAttribute(C3,3));geo.setIndex(idx);
   const mh=new THREE.Mesh(geo,M(0xffffff,{vertexColors:true,side:THREE.DoubleSide}));mh.frustumCulled=false;mh.castShadow=mh.receiveShadow=true;S.add(mh);
-  return{cx,cz,R,blades,geo,P3,N3}}
+  return{cx,cz,R,blades,geo,P3,N3,mh}}
 function meadowStep(m,dt,force){
   const px=cam.position.x,py=cam.position.y,pz=cam.position.z;
   if(!force&&Math.hypot(m.cx-px,m.cz-pz)>m.R+35)return;
@@ -1095,7 +1095,7 @@ function makeWater(){return new THREE.ShaderMaterial({side:THREE.DoubleSide,tran
   uniforms:{uTime:{value:0},uN:{value:4},uHi:{value:0},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uFog:{value:new THREE.Color(0x1aa3c9)},uFogA:{value:new THREE.Color(0xc7e6fa)},uRip:{value:wxT},uRC:{value:new THREE.Vector2()},uStorm:{value:0},uGh:{value:0},uRFon:{value:0},uRF:{value:null},uTM:{value:new THREE.Matrix4()}},
   vertexShader:WXV,fragmentShader:WXF})}
 /* sun shadows: shadow box follows the player */
-R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;S.add(sun.target);
+R.shadowMap.enabled=true;R.shadowMap.autoUpdate=false;R.shadowMap.needsUpdate=true;R.shadowMap.type=THREE.PCFSoftShadowMap;S.add(sun.target);
 Object.assign(sun.shadow.camera,{left:-32,right:32,top:32,bottom:-32,near:1,far:120});sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias=-.0006;sun.shadow.normalBias=.05;floor.receiveShadow=true;
 function followSun(){if(!sun.castShadow)return;cam.getWorldDirection(fw);const x=Math.round(cam.position.x+fw.x*14),z=Math.round(cam.position.z+fw.z*14);
@@ -2256,11 +2256,23 @@ function pickTarget(){cam.getWorldDirection(fw);let best=null,bd=6.5;
   for(const a of A){if(a.free)continue;tmp.subVectors(a.g.position,pos);const d=tmp.length();
     if(d<bd&&tmp.normalize().dot(fw)>.82){bd=d;best=a}}return best}
 
+/* OPTIMASI: culling tanaman (CPU+GPU), shadow dibatasi 30Hz, tanpa alokasi per frame */
+const _fr=new THREE.Frustum(),_pmx=new THREE.Matrix4(),_bs=new THREE.Sphere(),_uf=new THREE.Vector3(),_ur=new THREE.Vector3(),_ud=new THREE.Vector3();let FRM=0;
+function plantFrustum(){cam.updateMatrixWorld();_pmx.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);_fr.setFromProjectionMatrix(_pmx)}
+function plantStep(m,dt,i,fn){const bs=m.geo.boundingSphere;
+  if(bs&&dt>0){_bs.copy(bs);_bs.radius+=12;if(!_fr.intersectsSphere(_bs))return;
+    if(_bs.center.distanceToSquared(cam.position)>900&&((FRM+i)&1)){m.sk=(m.sk||0)+dt;return}
+    if(m.sk){dt+=m.sk;m.sk=0}}
+  fn(m,dt)}
+function plantBounds(m,mg,mesh){m.geo.computeBoundingSphere();m.geo.boundingSphere.radius+=mg;mesh.frustumCulled=true}
+let shT=0,shX=1e9,shZ=1e9;
+function shadowTick(now){if(!sun.castShadow)return;const mv=sun.position.x!==shX||sun.position.z!==shZ;
+  if(mv||now-shT>=30){R.shadowMap.needsUpdate=true;shT=now;shX=sun.position.x;shZ=sun.position.z}}
 function update(dt){
   if(paused)dt=0;
-  t+=dt;
+  t+=dt;FRM++;
   CU.uT.value=t;if(SW)SW.uniforms.uTime.value=t;if(HQ()){const ru=RY.material.uniforms;ru.uTime.value=t;ru.uSt.value=WX.k;ru.uAb.value=wx.above?1:0}
-  weedPhys(dt);meadows.forEach(m=>meadowStep(m,dt));kelps.forEach(k=>kelpStep(k,dt));for(const b of PG.beds){const mm=BEDG.get(b);if(mm&&mm.kl)kelpStep(mm.kl,dt)}marineStep(dt);
+  weedPhys(dt);plantFrustum();meadows.forEach((m,i)=>plantStep(m,dt,i,meadowStep));kelps.forEach((k,i)=>plantStep(k,dt,i+9,kelpStep));for(const b of PG.beds){const mm=BEDG.get(b);if(mm&&mm.kl)kelpStep(mm.kl,dt)}marineStep(dt);
   {const yb=Math.min(-12,cam.position.y-14);for(let i=0;i<NB;i++){bp[i*3+1]+=dt*1.5;if(bp[i*3+1]>5)bp[i*3+1]=yb+rnd(0,6);else if(bp[i*3+1]<yb-8)bp[i*3+1]=yb+rnd(0,6)}}bg.attributes.position.needsUpdate=true;
 
   let tg=null,cutting=false;
@@ -2268,8 +2280,8 @@ function update(dt){
     const bz=busy()?0:1,L=bz*((keys.has('ArrowLeft')?1:0)-(keys.has('ArrowRight')?1:0)),U=bz*((keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0));
     yaw+=L*1.8*dt;pitch=Math.max(-1.4,Math.min(1.4,pitch+U*1.4*dt));
     cam.rotation.set(pitch,yaw,0);
-    const f=new THREE.Vector3(-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)),
-          r=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)),d=new THREE.Vector3();
+    const f=_uf.set(-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)),
+          r=_ur.set(Math.cos(yaw),0,-Math.sin(yaw)),d=_ud.set(0,0,0);
     if(keys.has('KeyW'))d.add(f);if(keys.has('KeyS'))d.sub(f);if(keys.has('KeyD'))d.add(r);if(keys.has('KeyA'))d.sub(r);
     if(keys.has('Space'))d.y+=1;if(keys.has('ShiftLeft')||keys.has('ShiftRight')||keys.has('KeyC'))d.y-=1;
     if(busy())d.set(0,0,0);if(d.lengthSq()>0)d.normalize().multiplyScalar(7*(1+.06*PG.sk.swim+petBuf().spd));
@@ -2350,8 +2362,8 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);fo
   if(skyOn){const ul=UL();skyM.visible=!ul;CLD.mesh.visible=true;GHM.visible=ul;GHM.position.copy(cam.position);GHM.material.uniforms.uT.value=t;GHM.material.uniforms.uS.value=WX.k;
     CCAM.fov=cam.fov;CCAM.aspect=cam.aspect;CCAM.updateProjectionMatrix();CCAM.position.copy(cam.position);CCAM.quaternion.copy(cam.quaternion);CCAM.updateMatrixWorld();R.getDrawingBufferSize(SKYB);{const ps=Math.max(3,Math.round(SKYB.y/220)),w=Math.ceil(SKYB.x/ps),h=Math.ceil(SKYB.y/ps);if(SKYRT.width!==w||SKYRT.height!==h)SKYRT.setSize(w,h);
     R.setRenderTarget(SKYRT);R.clear();R.render(CS,CCAM);R.setRenderTarget(null);R.render(BS,VC)}R.clearDepth();S.background=null}
-  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
-meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
+  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
+meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));meadows.forEach(m=>plantBounds(m,5,m.mh));kelps.forEach(k=>plantBounds(k,9,k.mk));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
 </script>
 <script type="text/plain" data-defer>
 /* ===== ONLINE: Discord login + Supabase save + mode card ===== */
