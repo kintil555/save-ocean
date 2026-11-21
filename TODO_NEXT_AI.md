@@ -52,3 +52,7 @@ Kode: blok `/* ===== LAUT DALAM v2` di `index.html`.
 # ASSET LIBRARY `AL` (wajib)
 Blok `/* ===== ASSET LIBRARY` di `index.html` (setelah `makeTex`). Material bertekstur (pasir, karang, dasar) WAJIB dibuat via `AL.mat(warna,'sand'|'sandN'|'coral',opsi)` atau `AL.reg(materialAda,kunci)`. Tekstur otomatis dilepas di Low, dipasang di Medium+ (`applyQ` -> `AL.applyAll`). Dunia dangkal & laut dalam memakai pustaka yang sama; jangan bikin material bertekstur manual. Tekstur baru: tambah di `makeTex()`.
 Laut dalam: warna kabut air (`uFog`/`SB`) mengikuti kabut kedalaman; air digambar lebih dulu (`renderOrder -1`) supaya hewan transparan tidak tertutup permukaan.
+
+# LAUT DALAM: tumbuhan & ubur-ubur (v2.1)
+- Kelp/rumput laut dalam = `makeKelp`/`makeMeadow` dunia dangkal (parameter `gf`=fungsi tinggi, `par`=induk). Step di `deepStep` (`DEEP.kp`, `DEEP.md`). Jangan bikin versi terpisah.
+- Ubur-ubur: lonceng ShaderMaterial fresnel (alpha dikurangi kabut, bukan ditambah), tentakel = rantai verlet `jellyTent` (1 mesh ribbon). Ultra: inti dalam + urat radial + manik cahaya. r128: variabel kabut = `fogDepth` (bukan `vFogDepth`).
