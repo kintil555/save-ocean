@@ -67,7 +67,8 @@ Kode: blok `/* ===== LAUT DALAM` di `index.html` (sebelum `/* HIGH/ULTRA: glow m
 ## TODO
 - [ ] UJI DI BROWSER: console bersih, fade/cutscene, E/T/M, FPS (lorong menambah ~465 elipsoid, ~150k segitiga), peta tampil/ukuran, tali melambai & tidak menembus batu, 2 akun saling melihat di laut dalam + tali biru, kompas.
 - [ ] Anglerfish pengejar masih lokal per klien (tidak sinkron antar pemain); hewan lain sinkron.
-- [ ] Arus belum mendorong pemain; belum ada suara/gerak saat tali tertahan.
+- [x] Arus mendorong pemain (vel += arus*dt*.9; 0.35x di dalam lorong). Perlu disetel di browser (kuat/lemahnya).
+- [ ] Belum ada suara/gerak saat tali tertahan.
 - [ ] Hewan: belum ada flee/serang, belum ada suara paus/sonar.
 - [ ] Misi/ekonomi laut dalam: harta/sampah/hewan terjerat khusus, XP lebih besar, oksigen/tekanan, syarat Senter. UI koleksi spesies (`PG.deep.seen`).
 - [ ] Gua: ruang rahasia; percabangan lorong.

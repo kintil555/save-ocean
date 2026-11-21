@@ -2686,7 +2686,9 @@ function deepTip(){return nearPortal()?'Tekan E untuk naik ke kapal':LROPE.on?'T
 function deepStep(dt){
   deepCompass();dmStep();
   if(DEEP.on){S.background.setHex(0x010509);S.fog.color.setHex(0x010509);S.fog.density=.05;HEMI.intensity=.5;sun.intensity=0;if(RY)RY.visible=false;SURGE.set(0,0,0);STM.dmg=0;STM.far=0;wx.above=false;
-    if(DEEP.built)deepFauna(dt);lrStep(dt)}
+    if(DEEP.built){deepFauna(dt);if(state==='play'&&dt>0&&dt<.2&&!DEEP.busy){DEEP.cur(pos.x,pos.y,pos.z,dClock(),_dcv);const k=(nearTun(pos.x,pos.z,6)?.35:1)*dt*.9;vel.x+=_dcv.x*k;vel.y+=_dcv.y*k;vel.z+=_dcv.z*k;
+      if(!DEEP.cw&&_dcv.length()>.8){DEEP.cw=1;toast('Arus kuat mendorongmu · tali membantu tetap di jalur','gold')}}}
+    lrStep(dt)}
   else if(DEEP.dusk){S.background.lerp(_dk,.6);S.fog.color.copy(S.background);HEMI.intensity*=.5;sun.intensity*=.4;
     if(CSN.on&&DEEP.pending&&!DEEP.fo&&CSN.t>CT.splash+CT.sink-.2){DEEP.fo=true;fade(1,900)}}
   if(DEEP.on||DEEP.dusk)DEEP.was=true;
