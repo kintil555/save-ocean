@@ -2036,7 +2036,7 @@ function finishCut(){if(!CSN.on)return;CSN.on=false;state='play';
   const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1]);vel.set(0,0,0);yaw=0;PL.by=0;PL.roll=0;PL.wp=false;pitch=-.12;PL.lean=0;
   const u=PL.model.userData;u.head.rotation.y=0;['armL','armR','legL','legR','kneeL','kneeR','elbowL','elbowR','head'].forEach(k=>{u[k].rotation.x=0});
   cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);
-  $('cutscn').classList.remove('on');$('cutscn').hidden=true;$('hud').hidden=false;wx.pAbove=false}
+  $('cutscn').classList.remove('on');$('cutscn').hidden=true;$('hud').hidden=false;wx.pAbove=false;if(PG.zone==='deep'&&!DEEP.on&&!DEEP.busy)setTimeout(()=>{if(state==='play'&&!DEEP.on)startDeepDive()},600)}
 function setCap(s){if(CSN.cap!==s){CSN.cap=s;$('capt').textContent=s}}
 function cutStep(dt){const T=(CSN.t+=dt),pm=PL.model,u=pm.userData,TE=CT.splash+CT.sink+CT.blend;
   if(T>=TE){finishCut();return}
@@ -2699,9 +2699,9 @@ function deepCompass(){const on=DEEP.on&&state==='play';if(DCOMP.style.display!=
 /* ===== transisi & lingkungan ===== */
 function startDeepDive(){if(DEEP.busy||DEEP.on||state!=='play')return;DEEP.busy=true;
   fade(1,700).then(()=>{buildDeep();anchorReset();ropeDrop();DEEP.on=true;DEEP.g.visible=true;const q=bl(0,7);pos.set(q[0],WL-.4,q[1]);vel.set(0,0,0);yaw=Math.PI;pitch=0;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);wx.above=null;wx.pAbove=null;
-    const D=PG.deep||(PG.deep={dives:0,seen:{}});D.dives++;saveP();return fade(0,900)}).then(()=>{DEEP.busy=false;toast('Laut Dalam · E dekat kapal: ambil tali, lalu menyelam','gold');setTimeout(()=>toast('Naik: Spasi · kembali ke kapal lalu E > Naik ke Kapal','gold'),2800)})}
+    const D=PG.deep||(PG.deep={dives:0,seen:{}});D.dives++;PG.zone='deep';saveP();return fade(0,900)}).then(()=>{DEEP.busy=false;toast('Laut Dalam · E dekat kapal: ambil tali, lalu menyelam','gold');setTimeout(()=>toast('Naik: Spasi · kembali ke kapal lalu E > Naik ke Kapal','gold'),2800)})}
 function exitDeep(){if(DEEP.busy||!DEEP.on)return;DEEP.busy=true;
-  fade(1,800).then(()=>{DEEP.on=false;DEEP.g.visible=false;ropeDrop();closeRopeUI();const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1]);vel.set(0,0,0);yaw=0;pitch=-.12;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);
+  fade(1,800).then(()=>{DEEP.on=false;DEEP.g.visible=false;ropeDrop();closeRopeUI();PG.zone='shallow';saveP();const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1]);vel.set(0,0,0);yaw=0;pitch=-.12;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);
     wx.above=null;updReef();return fade(0,800)}).then(()=>{DEEP.busy=false;toast('Kembali ke kapal','gold')})}
 function deepReset(){DEEP.on=DEEP.busy=false;DEEP.g.visible=false;ropeDrop();fade(0,0)}
 function deepTip(){const bn=boatNear();
