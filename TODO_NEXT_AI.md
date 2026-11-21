@@ -47,14 +47,22 @@ Kode: blok `/* ===== LAUT DALAM` di `index.html` (sebelum `/* HIGH/ULTRA: glow m
 - Tali: **T** dekat pelampung (<9 m) = pasang ke diri; breadcrumb tiap 1.4 m, simpul didorong keluar dari `DOB` + dasar, ditarik lurus, mendekati simpul lama = tali memendek (ikuti tali untuk pulang). Max 220 simpul.
 - Keluar: swim ke portal cahaya (atas pelampung), **E** -> fade -> kembali ke kapal.
 
+## Sudah dikerjakan (putaran 2, belum diuji di browser, hanya `node --check`)
+- Multiplayer: tombol `#pdeep` disembunyikan + `startDeepDive` ditolak bila `window.roomMode!=='single'` (getter `window.roomMode` di blok ONLINE).
+- Tali: tiap segmen dicek 3 titik (`LRS=[.25,.5,.75]`) terhadap hitbox, bukan hanya titik tengah.
+- Langit-langit: cincin gelap visual di `DEEP.TOP` (lubang di portal). Clamp tetap ada sebagai pengaman.
+- Gua: 16 stalaktit gantung per gua (instanced) + hitbox silinder dengan `bot`.
+- Anglerfish: mengejar pelan bila pemain <32 m (maks 16 m dari rumah), kembali bila jauh.
+- Hewan baru: viperfish x5, gulper eel x3, cumi raksasa x2 (lengan beranimasi), isopod raksasa x7 di dasar.
+- Kompas HUD (panah + jarak ke pelampung) saat di zona dalam.
+- Progres: `PG.deep={dives,seen}`; 7 spesies, toast "Spesies baru" saat didekati, tersimpan lewat `saveP()`.
+
 ## TODO
-- [ ] UJI DI BROWSER: console bersih, urutan fade/cutscene, skip cutscene (klik/Spasi) tetap masuk zona dalam, tombol Laut Dalam di menu kapal, E/T berfungsi, FPS di Low/Medium/High/Ultra.
-- [ ] Multiplayer: zona dalam lokal saja (pemain lain tidak tersinkron). Sembunyikan tombol `#pdeep` bila `roomMode!=='single'` (variabel ada di IIFE ONLINE; ekspos lewat `window`) atau sinkronkan posisi + `zone` di pesan `p`.
-- [ ] Tali: segmen antar simpul bisa memotong sudut batu tipis (hanya simpul + titik tengah dicek). Tambah sampling 3 titik/segmen atau raycast. Tali belum ikut arus. Belum ada suara/gerak saat tali tertahan.
-- [ ] Langit-langit: ada clamp tak terlihat di `DEEP.TOP` (-50). Ganti dengan visual (permukaan dari bawah / lapisan kabut) atau poros nyata ke permukaan.
-- [ ] Hewan: belum ada interaksi (flee/serang), belum ada suara paus/sonar, belum ada hewan dasar (isopod raksasa, cumi raksasa, viperfish, ikan gulper). Anglerfish bisa mengejar pemain pelan.
-- [ ] Misi/ekonomi laut dalam: harta/sampah/hewan terjerat khusus, XP lebih besar, oksigen/tekanan, syarat Senter.
-- [ ] Gua: tambah variasi interior (stalaktit menggantung `bot`, terowongan panjang, ruang rahasia), peta mini/kompas arah pelampung.
-- [ ] Cutscene masuk: kapal saat `dusk` masih langit biasa (hanya diredupkan); bisa tambah awan gelap/hujan, narasi caption khusus, suara.
-- [ ] Simpan progres laut dalam (`PG`): berapa kali menyelam, penemuan hewan.
-- [ ] Ultra: ghostPass/refraksi & caustics belum disetel untuk zona dalam (caustics `uOn` mungkin terlihat tipis di dasar).
+- [ ] UJI DI BROWSER: console bersih, urutan fade/cutscene, skip cutscene (klik/Spasi) tetap masuk zona dalam, tombol Laut Dalam di menu kapal, E/T berfungsi, FPS di Low/Medium/High/Ultra, kompas arah benar (cek tanda rotasi), stalaktit tidak menembus pemain, hewan baru tampak benar (orientasi/skala).
+- [ ] Tali: belum ikut arus; belum ada suara/gerak saat tali tertahan.
+- [ ] Hewan: belum ada flee/serang (anglerfish hanya mengejar), belum ada suara paus/sonar.
+- [ ] Misi/ekonomi laut dalam: harta/sampah/hewan terjerat khusus, XP lebih besar, oksigen/tekanan, syarat Senter. UI koleksi spesies (`PG.deep.seen`).
+- [ ] Gua: terowongan panjang, ruang rahasia, peta mini.
+- [ ] Cutscene masuk: kapal saat `dusk` masih langit biasa (hanya diredupkan); bisa tambah awan gelap/hujan, narasi caption, suara.
+- [ ] Ultra: ghostPass/refraksi & caustics belum disetel untuk zona dalam.
+- [ ] Multiplayer: sinkronisasi zona dalam (saat ini dinonaktifkan di mode ruang).
