@@ -258,13 +258,16 @@ const set=(v,t)=>{p=Math.max(p,v);F.style.transform='scaleX('+p+')';if(t)T.textC
 const hide=()=>{if(gone)return;gone=true;I.classList.add('out');setTimeout(()=>I.remove(),700)};
 /*bub*/for(let i=0;i<36;i++){const b=document.createElement('span'),r=Math.random;b.className='ib';
   b.style.cssText='left:'+(r()*96).toFixed(1)+'%;width:'+(6+r()*10).toFixed(1)+'px;--d:'+(5+r()*7).toFixed(1)+'s;--l:-'+(r()*10).toFixed(1)+'s;--w:'+(1.6+r()*1.6).toFixed(1)+'s';I.insertBefore(b,I.firstChild)}/*/bub*/
+window.__authP=new Promise(r=>{window.__authRes=()=>{window.__authOk=true;r()}});
 const raf2=f=>requestAnimationFrame(()=>requestAnimationFrame(f));
 /* skrip berat game ditunda sampai animasi intro sempat tampil */
 function start(){if(started)return;started=true;set(.6,'Menyiapkan dunia...');
   setTimeout(()=>{
     document.querySelectorAll('script[data-defer]').forEach(o=>{const n=document.createElement('script');n.textContent=o.textContent;o.replaceWith(n)});
     set(.9,'Kompilasi shader...');
-    raf2(()=>{set(1,'Siap!');setTimeout(hide,Math.max(300,MIN-(performance.now()-t0)))})
+    raf2(()=>{const fin=()=>{set(1,'Siap!');setTimeout(hide,Math.max(300,MIN-(performance.now()-t0)))};
+      if(window.__authOk)return fin();set(.95,'Memeriksa sesi login...');
+      Promise.race([window.__authP,new Promise(r=>setTimeout(r,6000))]).then(fin)})
   },80)}
 set(.12,'Memuat aset...');
 window.addEventListener('load',()=>{set(.4,'Memuat pustaka 3D...');setTimeout(start,Math.max(150,PLAY-(performance.now()-t0)))});
@@ -329,7 +332,7 @@ setTimeout(start,12000);setTimeout(hide,30000);
 
 <div id="cutscn" hidden><div class="cb t"></div><div class="cb b"></div><div id="capt"></div><div id="cskp">Lewati: Spasi / Enter / Klik</div></div>
 
-<div class="ov" id="login">
+<div class="ov" id="login" hidden>
   <h2>Masuk</h2>
   <div class="card panel">
     <div>Login dengan Discord supaya progress & oceanmu tersimpan online.</div>
@@ -2360,10 +2363,11 @@ async function onSession(s){
   const im=q('wimg');if(md.avatar_url)im.src=md.avatar_url;else im.hidden=true;
 }
 async function boot(){
-  if(!CFG){q('lgs').textContent='Supabase belum diisi (SB_URL & SB_KEY). Kamu bisa main offline.';q('lgd').disabled=true;return}
+  if(!CFG){q('lgs').textContent='Supabase belum diisi (SB_URL & SB_KEY). Kamu bisa main offline.';q('lgd').disabled=true;q('login').hidden=false;return}
   const{data}=await sb.auth.getSession();
   sb.auth.onAuthStateChange((_e,s)=>{if(s)token=s.access_token});
   if(data.session)await onSession(data.session);
+  if(!user)q('login').hidden=false;
 }
 q('lgd').onclick=async()=>{
   q('lgs').textContent='Mengalihkan ke Discord...';
@@ -2578,7 +2582,7 @@ function closeModes(){q('modes').hidden=true;q('menu').hidden=false;if(WV)WV.on=
 q('play').onclick=openModes;
 q('mback').onclick=()=>{if(!q('mmain').hidden)closeModes();else{subs('main');mst('')}};
 
-boot().catch(e=>{q('lgs').textContent='Error: '+e.message});
+boot().catch(e=>{q('lgs').textContent='Error: '+e.message;q('login').hidden=false}).finally(()=>{if(window.__authRes)window.__authRes()});
 })();
 
 </script>
