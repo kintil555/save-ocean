@@ -1571,7 +1571,7 @@ function wxStep(dt){if(!HQ())return;wxCenter();
   if(n){wxT.needsUpdate=true;if(mx>.012)wx.act=Math.max(wx.act,.3)}}
 function wxRipH(x,z){if(!HQ())return 0;const cx=Math.floor(x/WXC),cz=Math.floor(z/WXC);
   if(Math.abs(cx-wx.cx)>WXN/2-4||Math.abs(cz-wx.cz)>WXN/2-4)return 0;return wxH[wxMod(cz)*WXN+wxMod(cx)]}
-const surfY=(x,z)=>WL+wvH(x,z)+wxRipH(x,z);
+const surfY=(x,z)=>WL+wvH(x,z)+wxRipH(x,z),surfW=(x,z)=>WL+wvH(x,z);/* surfW: ombak saja (tanpa riak) untuk apung player agar tidak bergetar */
 
 /* shader air (dipakai vertex + fragment): ombak analitik + sampel riak bilinear */
 const WXG=`precision highp sampler2D;uniform float uStorm;uniform sampler2D uRip;uniform vec2 uRC;uniform float uTime;
@@ -1965,9 +1965,9 @@ function wxWake(dt,wy){if(dt<=0)return;
   else if(sp<=.6){wx.lx=pos.x;wx.lz=pos.z;wx.idle=(wx.idle||0)-dt;
     if(dy<.9&&wx.idle<=0){wx.idle=.75;wxEmit(pos.x,pos.z,.7,-.07*q,.15*q,.25)}}}
 /* permukaan untuk pemain: mengapung, percikan, riak + busa saat bergerak */
-function surfPlayer(dt,d){const wy=surfY(pos.x,pos.z);
+function surfPlayer(dt,d){const wy=surfW(pos.x,pos.z);
   if(!busy()&&d.y>-.01&&pos.y>wy-.35)pos.y+=(wy+.4-pos.y)*(1-Math.exp(-6*dt));
-  const ab=pos.y>wy-.1;
+  const ab=wx.pAbove===null?pos.y>wy-.1:wx.pAbove?pos.y>wy-.28:pos.y>wy+.02;
   if(wx.pAbove!==null&&ab!==wx.pAbove){const sp=Math.abs(vel.y)+Math.hypot(vel.x,vel.z)*.3;if(sp>.8)splash(pos.x,pos.z,Math.max(.25,Math.min(.8,sp/7)))}
   wx.pAbove=ab;
   {const sp=Math.hypot(vel.x,vel.z)+Math.abs(vel.y)*.5;wx.sT=(wx.sT||0)-dt;
@@ -2288,7 +2288,7 @@ function update(dt){
     vel.lerp(d,1-Math.exp(-4*dt));
     pos.addScaledVector(vel,dt);pos.addScaledVector(SURGE,dt);leash();
     if(Math.abs(pos.x)>B-12)vel.x-=Math.sign(pos.x)*40*dt;if(Math.abs(pos.z)>B-12)vel.z-=Math.sign(pos.z)*40*dt;
-    pos.y=Math.min(surfY(pos.x,pos.z)+.55,pos.y);pos.x=Math.max(4-B,Math.min(B-4,pos.x));pos.z=Math.max(4-B,Math.min(B-4,pos.z));collide();surfPlayer(dt,d);
+    pos.y=Math.min(surfW(pos.x,pos.z)+.55,pos.y);pos.x=Math.max(4-B,Math.min(B-4,pos.x));pos.z=Math.max(4-B,Math.min(B-4,pos.z));collide();surfPlayer(dt,d);
     cam.position.copy(pos);
     WK=toolStep(dt);tg=WK.tg;cutting=WK.cut;
     if(TP){cam.position.addScaledVector(f,-3.4);cam.position.y=Math.min(WL+3.5,Math.max(cam.position.y+.5,fh(cam.position.x,cam.position.z)+.4))}
