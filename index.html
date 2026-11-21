@@ -2355,7 +2355,7 @@ function update(dt){
     pos.y=Math.min(surfW(pos.x,pos.z)+.55,pos.y);pos.x=Math.max(4-LB,Math.min(LB-4,pos.x));pos.z=Math.max(4-LB,Math.min(LB-4,pos.z));collide();surfPlayer(dt,d);
     cam.position.copy(pos);
     WK=DEEP.on?{tg:null,cut:false,prog:null,tip:''}:toolStep(dt);tg=WK.tg;cutting=WK.cut;
-    if(TP){cam.position.addScaledVector(f,-3.4);cam.position.y=Math.min(WL+3.5,Math.max(cam.position.y+.5,fh(cam.position.x,cam.position.z)+.4))}
+    if(TP){cam.position.addScaledVector(f,-3.4);cam.position.y=Math.min(WL+3.5,Math.max(cam.position.y+.5,DGH(cam.position.x,cam.position.z)+.4))}
   }else if(state==='menu'){
     const a=t*.15;cam.position.set(Math.cos(a)*15,-5,Math.sin(a)*15);cam.lookAt(0,-6,0);
   }
