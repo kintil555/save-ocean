@@ -155,7 +155,7 @@ button.tile{cursor:pointer}button.tile:hover{filter:brightness(1.05)}
 @keyframes ibr{0%{transform:translateY(0) translateX(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-115vh) translateX(18px);opacity:0}}
 #mStage{position:relative;width:min(50vw,300px,38vh);aspect-ratio:1;margin-bottom:6px}
 #mStage>*{position:absolute;left:50%;bottom:8%;transform-origin:50% 100%}
-#mShadow{width:60%;height:7%;margin-left:-30%;border-radius:50%;background:#021b3a;opacity:.3;bottom:2%!important;animation:msh 1.6s 3.6s ease-in-out infinite}
+#mShadow{width:60%;height:7%;margin-left:-30%;border-radius:50%;background:#021b3a;opacity:.3;bottom:21%!important;animation:msh 1.6s 3.6s ease-in-out infinite}
 @keyframes msh{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.8)}}
 #mSq{width:20%;height:20%;margin-left:-10%;border-radius:12%;background:#eb5942;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18);animation:msq 3.1s cubic-bezier(.3,.7,.4,1) both}
 @keyframes msq{
@@ -175,9 +175,26 @@ button.tile{cursor:pointer}button.tile:hover{filter:brightness(1.05)}
 90%,100%{transform:scale(4.6);opacity:0}}
 #mWrap{width:100%;margin-left:-50%;height:100%;bottom:0!important;animation:midle 1.5s 3.7s ease-in-out infinite}
 @keyframes midle{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-7%) rotate(-3deg) scale(.98,1.03)}50%{transform:translateY(0) rotate(0) scale(1.04,.96)}75%{transform:translateY(-4%) rotate(3deg)}}
-#mImg{position:absolute;left:0;bottom:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;opacity:0;transform-origin:50% 100%;animation:mimg 1.0s 2.5s both,mbuild .8s 2.5s steps(10) both;filter:drop-shadow(0 8px 0 rgba(2,27,58,.25))}
-@keyframes mimg{0%{transform:scale(.3)}45%{transform:scale(1.2,.84)}70%{transform:scale(.94,1.08)}100%{transform:scale(1)}}
-@keyframes mbuild{0%{opacity:1;clip-path:inset(100% 0 0 0)}100%{opacity:1;clip-path:inset(0 0 0 0)}}
+.pt{position:absolute;left:0;bottom:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;opacity:0;filter:drop-shadow(0 6px 0 rgba(2,27,58,.22))}
+#mBody{transform-origin:50% 100%;animation:mpop .5s 2.5s cubic-bezier(.3,1.6,.5,1) both,mbreath 1.6s 4.2s ease-in-out infinite}
+@keyframes mpop{0%{opacity:1;transform:scale(.25,.2)}100%{opacity:1;transform:scale(1)}}
+@keyframes mbreath{0%,100%{transform:scale(1)}50%{transform:scale(1.03,.97)}}
+#mEyes{transform-origin:50% 36%;animation:meye .35s 3.05s cubic-bezier(.3,1.8,.5,1) both,mblink 3s 4.2s infinite}
+@keyframes meye{0%{opacity:1;transform:scale(0)}100%{opacity:1;transform:scale(1)}}
+@keyframes mblink{0%,90%,100%{transform:scaleY(1)}94%{transform:scaleY(.1)}}
+#mArmL{transform-origin:25% 40%;animation:marmL .5s 3.25s cubic-bezier(.3,1.7,.5,1) both,mflapL .9s 4.3s ease-in-out infinite alternate}
+#mArmR{transform-origin:75% 40%;animation:marmR .5s 3.4s cubic-bezier(.3,1.7,.5,1) both,mwave .55s 4.3s ease-in-out infinite alternate}
+@keyframes marmL{0%{opacity:1;transform:translateX(35%) scaleX(0)}100%{opacity:1;transform:none}}
+@keyframes marmR{0%{opacity:1;transform:translateX(-35%) scaleX(0)}100%{opacity:1;transform:none}}
+@keyframes mwave{0%{transform:rotate(6deg)}100%{transform:rotate(-26deg)}}
+@keyframes mflapL{0%{transform:rotate(0)}100%{transform:rotate(14deg)}}
+.pl{transform-origin:50% 62.5%}
+#mLeg0{animation:mleg .4s 2.9s cubic-bezier(.3,1.6,.5,1) both,mstep .6s 4.3s ease-in-out infinite alternate}
+#mLeg1{animation:mleg .4s 3.0s cubic-bezier(.3,1.6,.5,1) both,mstep .6s 4.6s ease-in-out infinite alternate}
+#mLeg2{animation:mleg .4s 3.1s cubic-bezier(.3,1.6,.5,1) both,mstep .6s 4.6s ease-in-out infinite alternate}
+#mLeg3{animation:mleg .4s 3.2s cubic-bezier(.3,1.6,.5,1) both,mstep .6s 4.3s ease-in-out infinite alternate}
+@keyframes mleg{0%{opacity:1;transform:scaleY(0)}100%{opacity:1;transform:scaleY(1)}}
+@keyframes mstep{0%{transform:scaleY(1)}100%{transform:scaleY(.72)}}
 #mRing{width:60%;aspect-ratio:1;margin-left:-30%;bottom:20%!important;border-radius:50%;border:6px solid #fff;opacity:0;animation:mring .7s 2.4s ease-out forwards}
 @keyframes mring{0%{opacity:.95;transform:scale(.2)}100%{opacity:0;transform:scale(2.4)}}
 .mst{width:8%;aspect-ratio:1;background:#ffd93b;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);opacity:0;animation:mspark 1.1s ease-out infinite}
@@ -198,7 +215,7 @@ button.tile{cursor:pointer}button.tile:hover{filter:brightness(1.05)}
     <div id="mShadow"></div>
     <div id="mRing"></div>
     <div id="mSq"></div>
-    <div id="mWrap"><img id="mImg" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABlUlEQVR4AUSSi4HCMAxD5exwZZ8yBDAhMATcPMAQuien5Uw+liw7TujQbvXv1O6zMwjMFec7JlOaBUDlUn6SZQtfcUFSlTVjwkqA5oWNgCAD2mdPB26AGJyClMULdhdOOGgkOSCso0Q2N4T4ShAlAy/c9JJnOhuK7Tz++7z6fTn2/FxWf4JPR7/O4VaUVjpEyqjtDYSZuRVfrg9ARkiTYB3uGxdNt1iigRSoKJWTPqe1n5KTVfRoEOncrvQ6rTBq3ZtuIMHWmOldQ05vTmjieB3PUcTKQZkWsEVjvq603J+1XJ9l6CxW9a9zDMnI9nN91HL7pcGCKQ1RKq4TlRU/S0Hklb8fBTjfgzBvMx2OLCHglMTgHzoRlo76NALL7dm1cTOUF+RsOhBGqEJTiRFP+0Kv9KXNUCHYrx1yfkiod/LAW6DRcuWepOYN+FvJlHJ/o21AwEyuQB2HZmfgCo1y/7Qoa9q+QySWqyZAgcouivXeCHH/E+wp9g10sJG6uPgOGoKSIATJ6R1fm9NuTiCIVLHuVNIfAAAA//9vPh+GAAAABklEQVQDAFV9sy9yoa/fAAAAAElFTkSuQmCC"></div>
+    <div id="mWrap"><img class="pt pl" id="mLeg0" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAH0lEQVR4XmNgGAWjYFCC1xFO/0lxGBO6YpJ0jwIwAADgHQOGrDLr3AAAAABJRU5ErkJggg=="><img class="pt pl" id="mLeg1" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAIElEQVR4XmNgGAWjYFCD1xFO/4lxIBNORYzEaB8FIAAAmk0CiEC5UxEAAAAASUVORK5CYII="><img class="pt pl" id="mLeg2" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAH0lEQVR4XmNgGAWjYMiA15HO/3E5lokYX+DUPQrAAACcoAOIQ1a66gAAAABJRU5ErkJggg=="><img class="pt pl" id="mLeg3" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAH0lEQVR4XmNgGAWjYMiB15FO/9EdzUSaLxhJUz5CAABpQAKJo9O9RgAAAABJRU5ErkJggg=="><img class="pt" id="mArmL" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAI0lEQVR4XmNgGAWDCLyOcPoPwqQ6iQlZw39GRlL1j4JRAAYAzvMGDPubmDsAAAAASUVORK5CYII="><img class="pt" id="mArmR" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAJ0lEQVR4XmNgGAVDELyOdPr/OsL5P8zpTKT7gZGBgQGufxSMAjAAAN4aBg22QKTAAAAAAElFTkSuQmCC"><img class="pt" id="mBody" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAgElEQVR4Xu1Q2w2AIBDrGVfQgZxCJ8QldCAdouYOUBDitx8UQsKFPijQIO8KjnkixI/tpG1/F2Jwe8bpig4FGN0WHilV9YhxjbMc/VtAIDiXyXzJkISwZDFJijJBEtncLTs1PyQIfgqoi75Xqi7jBOtagsoXfHtCPmQTubtt+B0uymgoDxqptTMAAAAASUVORK5CYII="><img class="pt" id="mEyes" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGklEQVR4XmNgGAU0A//RTWZkxBQbBaNg8AAAVkwCAef2QmoAAAAASUVORK5CYII="></div>
     <i class="mst" style="margin-left:-62%;bottom:78%;animation-delay:3.4s"></i><i class="mst" style="margin-left:48%;bottom:70%;animation-delay:3.9s"></i><i class="mst" style="margin-left:36%;bottom:98%;animation-delay:4.4s"></i>
   </div>
   <h2>Selamatkan Laut</h2>
