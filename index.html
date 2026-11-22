@@ -2267,7 +2267,8 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   /* posisi pusat kepala flora = replika vertex shader dFloraMesh (tilt instance, goyang, menciut dekat pemain) */
   head(q,o){const T=DEEP.fU.uT.value,P=DEEP.fU.uP.value,sx=Math.sin(q.rz),cz=Math.cos(q.rz),ph=Math.abs(Math.sin(q.x*12.9898+q.z*78.233)*43758.5453)%1,
     sw=Math.sin(T*1.2+ph*6.28+2.2)*.22+Math.sin(T*.7+ph*17)*.12,sc=.6+q.w1*2,dx=q.x-P.x,dy=q.y-P.y,dz=q.z-P.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz),t=Math.min(1,Math.max(0,(d-4)/5)),k=t*t*(3-2*t);
-    o.x=q.x+q.hh*-sx+(Math.cos(ph*6.28)*.5+sw)*sc;o.z=q.z+q.hh*cz*Math.sin(q.rx)+(Math.sin(ph*6.28)*.5+sw*.8)*sc;
+    const rd=Math.hypot(dx,dz)+.001,tp=Math.min(1,Math.max(0,(rd-2)/10)),pw=(1-tp*tp*(3-2*tp))*.9;
+    o.x=q.x+q.hh*-sx+(Math.cos(ph*6.28)*.15+sw+dx/rd*pw)*sc;o.z=q.z+q.hh*cz*Math.sin(q.rx)+(Math.sin(ph*6.28)*.15+sw*.8+dz/rd*pw)*sc;
     o.y=q.y+q.hh*cz*Math.cos(q.rx)*(.4+.6*k);return o},
   /* 1 bila garis kamera->cahaya bebas medan, 0 bila terhalang */
   vis(x,y,z){const cx=cam.position.x,cy=cam.position.y,cz=cam.position.z;
@@ -2815,7 +2816,9 @@ void main(){mat4 M=modelMatrix*instanceMatrix;vec3 b=(M*vec4(0.,0.,0.,1.)).xyz;f
   else if(aK>2.5){od.y+=sin(uT*1.5+aPh*6.28+aU.x*2.)*.2*aU.x;}
   w.xyz+=step(.5,aK)*od*sz*1.5;
   float sw=sin(uT*1.2+aPh*6.28+h*2.2)*.22+sin(uT*.7+aPh*17.)*.12;vec2 dr=vec2(cos(aPh*6.28),sin(aPh*6.28));
-  w.x+=(dr.x*.5+sw)*h*h*(.6+sz*2.);w.z+=(dr.y*.5+sw*.8)*h*h*(.6+sz*2.);
+  vec2 rl=b.xz-uP.xz;float rd=length(rl)+.001,pw=1.-smoothstep(2.,12.,rd);/* tekuk menjauhi pemain, nol bila jauh */
+  vec2 bd=rl/rd*pw*.9;
+  w.x+=(dr.x*.15+sw+bd.x)*h*h*(.6+sz*2.);w.z+=(dr.y*.15+sw*.8+bd.y)*h*h*(.6+sz*2.);
   w.y=b.y+(w.y-b.y)*mix(.4,1.,k);
   vC=aCol;vH=h;vK=aK;vU=aU;vN=mix(1.45,1.,k);vNz=(aK>.5&&aK<1.5)?normalize(mat3(viewMatrix)*aD).z:0.;
   vec4 mv=viewMatrix*w;gl_Position=projectionMatrix*mv;
@@ -2826,9 +2829,9 @@ fogDepth=-mv.z;
     fragmentShader:`uniform float uT;varying vec3 vC;varying float vH;varying float vK;varying float vN;varying float vNz;varying vec2 vU;
 #include <fog_pars_fragment>
 void main(){float pl=.6+.4*sin(vH*9.-uT*2.2);vec3 c;float a;
-  if(vK<.5){c=vC*(.10+.75*vH*vH)*pl;a=.5;}
+  if(vK<.5){c=vC*(.10+.75*vH*vH)*pl;a=.62;}
   else if(vK<1.5){float f=clamp(vNz,0.,1.);c=vC*(1.1+.5*f)*(.85+.15*sin(uT*2.+vH*3.))+vec3(.55,.5,.45)*pow(f,3.)*.45;a=.9;}
-  else if(vK<2.5){float e=1.-pow(abs(vU.y),2.5);c=vC*(.3+1.1*pow(vU.x,1.4))*(.75+.25*pl);a=(.2+.5*vU.x)*e;}
+  else if(vK<2.5){float e=1.-pow(abs(vU.y),2.5);float cy=sqrt(max(1.-vU.y*vU.y,0.));c=vC*(.3+1.1*pow(vU.x,1.4))*(.75+.25*pl)*(.55+.6*cy);a=(.2+.5*vU.x)*e;}
   else{float e=1.-pow(abs(vU.y),2.5);c=vC*(.15+.5*vU.x)*pl*.8;a=.4*e;}
   c*=vN;float ff=0.;
 #ifdef USE_FOG
