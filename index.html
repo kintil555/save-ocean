@@ -3402,7 +3402,10 @@ function vehFeed(){const on=VEH.on&&state==='play'&&!TP&&!!XF.mat;for(const m of
   const u=XF.mat.uniforms;u.uT.value=XF.rt.texture;u.uTm.value=t;
   const fc=XF.cam;fc.fov=XF.vf;fc.aspect=XF.A;fc.near=cam.near;fc.far=cam.far;fc.updateProjectionMatrix();
   fc.position.set(pos.x,pos.y+.05,pos.z);fc.rotation.set(VEH.fp,VEH.yaw+VEH.fy,0);fc.updateMatrixWorld();
-  const ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;R.shadowMap.autoUpdate=false;R.setRenderTarget(XF.rt);R.clear();R.render(S,fc);R.setRenderTarget(ort);R.shadowMap.autoUpdate=sa}
+  /* item pemain (barometer, alat, tangan) menempel di `cam` -> sembunyikan saat render kamera luar; kamera pemain & kamera luar terpisah */
+  const hid=[];for(const o of cam.children)if(o.visible&&!o.isLight&&!o.isCamera){o.visible=false;hid.push(o)}
+  const ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;R.shadowMap.autoUpdate=false;R.setRenderTarget(XF.rt);
+  try{R.clear();R.render(S,fc)}finally{R.setRenderTarget(ort);R.shadowMap.autoUpdate=sa;for(const o of hid)o.visible=true}}
 /* badan pod (dipakai pod lokal & pod pemain lain): klon model + lampu + baling + turret kamera */
 function xvBody(){const g=new THREE.Group(),m=VEH.base.clone(true),prop=[];m.traverse(o=>{if(o.isMesh){o.userData.lxSkip=true;o.frustumCulled=false}});g.add(m);
   const dk=M(0x2a3138),glow=new THREE.MeshBasicMaterial({color:0xfff2c8});
