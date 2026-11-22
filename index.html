@@ -2281,7 +2281,7 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
     R.getDrawingBufferSize(_lxs);const w=Math.max(2,Math.ceil(_lxs.x/2)),h=Math.max(2,Math.ceil(_lxs.y/2));
     if(!LX.rt||LX.rt.width!==w||LX.rt.height!==h){if(LX.rt){LX.rt.depthTexture.dispose();LX.rt.dispose()}
       const dt=new THREE.DepthTexture(w,h);dt.type=THREE.UnsignedIntType;dt.minFilter=dt.magFilter=THREE.NearestFilter;
-      LX.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:true,depthTexture:dt});
+      LX.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearMipmapLinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,generateMipmaps:true,depthBuffer:true,depthTexture:dt});
       if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false});
       u.uDT.value=dt;u.uEM.value=LX.rt.texture;u.uTx.value.set(1/w,1/h)}
     R.getClearColor(_lxc);const oa=R.getClearAlpha(),ob=S.background,ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;
@@ -2320,10 +2320,9 @@ void main(){
       acc+=cone*at*nz*exp(-s*.04)*dt;}
     col+=vec3(1.,.94,.8)*acc*uFL*.55;}
   /* bloom dari tekstur emisi: warna piksel pemancar (bola angler, kepala flora, cerobong) di-blur; sudah tertutup medan lewat depth */
-  if(uEg>.001){float asp=uTx.y/uTx.x;vec3 em=vec3(0.);
-    for(int i=0;i<12;i++){float f=float(i)+.5,r=sqrt(f/12.),an=f*2.39996;vec2 o=vec2(cos(an),sin(an)*asp)*r;
-      em+=texture2D(uEM,vUv+o*.014).rgb*1.5+texture2D(uEM,vUv+o*.05).rgb*.8;}
-    col+=em/12.*uEg;}
+  if(uEg>.001){/* blur lewat mip chain (halus, tanpa salinan/hantu di sekitar pemancar kecil) */
+    vec3 em=texture2D(uEM,vUv,2.).rgb*.5+texture2D(uEM,vUv,3.).rgb*1.1+texture2D(uEM,vUv,4.).rgb*2.+texture2D(uEM,vUv,5.).rgb*3.2;
+    col+=em*uEg;}
   col*=uDk;if(!(col.r>=0.&&col.g>=0.&&col.b>=0.))col=vec3(0.);col=min(col,vec3(8.));
   gl_FragColor=vec4(1.-exp(-col*1.1),1.);
 }`}));
