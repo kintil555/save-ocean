@@ -2276,7 +2276,7 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   /* pass setengah resolusi: layer 5 (terrain/batu/lengkung) -> hitam + depth texture; layer 6 (pemancar) -> warna emisi, di-depth-test terhadap layer 5 */
   /* penghalus global: semua mesh opaque di S (dunia dangkal, laut dalam, kapal, pemain) otomatis masuk layer 5; scan ulang ~3x/dtk */
   tag(){if(LX.fr-(LX.tg|0)<20&&LX.tg!==undefined)return;LX.tg=LX.fr;
-    S.traverse(o=>{if(!o.isMesh||((o.layers.mask&96)!==0)||o===LX.vol)return;
+    S.traverse(o=>{if(!o.isMesh||((o.layers.mask&96)!==0)||o===LX.vol||o.userData.lxSkip)return;
       /* pemancar kecil (pet, ubur-ubur, angler, ikan) jangan jadi penghalus: cahaya di dalam tubuhnya sendiri akan terhalang. hanya oklusi besar (terrain/batu/kapal) */
       const g=o.geometry;if(!g)return;if(!g.boundingSphere)g.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return;const ms=Array.isArray(o.material)?o.material:[o.material];
       for(const m of ms){if(!m||(m.transparent&&(m.opacity<.9||m.depthWrite===false))||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
@@ -2603,20 +2603,52 @@ const mkRock=(sd,w,h)=>{const g=new THREE.SphereGeometry(1,w,h),p=g.attributes.p
 const DGLOW=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);
   g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(255,255,255,.5)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
 
-function mkAngler(sc){const g=new THREE.Group(),body=M(0x232733),dk=M(0x14161e),tw=M(0xf2f2e6),bl=new THREE.MeshBasicMaterial({color:0xfff0a0}),
+/* angler: badan lathe (profil runcing ke ekor), rahang+gigi, sirip, bintik fotofor; sungut (illicium) = rantai verlet di ruang dunia
+   (ikut tertinggal saat ikan bergerak, bergoyang oleh arus, menolak medan & pemain) dengan tabung Catmull-Rom; lentera ikut ujung sungut */
+const AN_N=6,AN_L=.4,AN_REST=(()=>{const a=[new THREE.Vector3(0,.98,.62)];let th=.3;for(let i=1;i<=AN_N;i++){th+=.14+.04*i;const p=a[i-1];a.push(new THREE.Vector3(0,p.y+Math.cos(th)*AN_L,p.z+Math.sin(th)*AN_L))}return a})();
+function mkAngler(sc){const g=new THREE.Group(),body=M(0x232733),dk=M(0x14161e),tw=M(0xf2f2e6),fin=M(0x1b1f2b,{side:THREE.DoubleSide}),
+  ph=new THREE.MeshBasicMaterial({color:0x8fe3ff}),bl=new THREE.MeshBasicMaterial({color:0xfff0a0}),
   mk=(geo,m,x,y,z,sx,sy,sz)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);return o};
-  g.add(mk(SPH,body,0,0,0,.95,1,1.35));
-  g.add(mk(SPH,dk,0,-.12,.95,.8,.45,.95));
-  const jaw=new THREE.Group();jaw.position.set(0,-.35,.35);jaw.add(mk(SPH,body,0,-.2,.65,.75,.28,1));g.add(jaw);
-  const tc=new THREE.ConeGeometry(.06,.4,5);
-  for(let i=0;i<8;i++){const z=.45+i*.2,x=(i%2?1:-1)*.42*(1-i*.05);const a=mk(tc,tw,x,-.28,z,1,1,1);a.rotation.x=Math.PI;g.add(a);const b=mk(tc,tw,x*.9,.02,z-.35+.35,1,1,1);jaw.add(b);b.position.set(x*.9,-.02,z);b.position.y=-.1}
-  for(const s of[-1,1]){g.add(mk(SPH,tw,s*.55,.42,.95,.15,.15,.15));g.add(mk(SPH,dk,s*.6,.43,1.05,.07,.07,.07))}
-  const st=new THREE.Group();st.position.set(0,.85,.55);st.rotation.x=1.0;st.add(mk(new THREE.CylinderGeometry(.03,.05,1.9,5),dk,0,.95,0,1,1,1));
-  const bulb=mk(SPH,bl,0,1.95,0,.24,.24,.24);bulb.layers.enable(6);st.add(bulb);
-  const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:DGLOW,color:0xfff2a8,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));gs.scale.set(3.4,3.4,1);gs.position.set(0,1.95,0);st.add(gs);g.add(st);
-  const tl=new THREE.Group();tl.position.set(0,0,-1.2);tl.add(mk(SPH,body,0,0,-.7,.12,.9,.9));g.add(tl);
-  g.add(mk(SPH,dk,0,.95,-.2,.08,.45,.8));
-  g.scale.setScalar(sc);g.userData={jaw,tl,gs,st};return g}
+  const pr=new THREE.SplineCurve([[.02,-2.15],[.1,-2.0],[.2,-1.5],[.45,-.9],[.85,-.3],[1.08,.3],[1.02,.8],[.72,1.25],[.3,1.5],[.02,1.58]].map(p=>new THREE.Vector2(p[0],p[1]))).getPoints(34);
+  const bg=new THREE.LatheGeometry(pr,20);bg.rotateX(Math.PI/2);const bd=new THREE.Mesh(bg,body);bd.scale.set(1.05,.98,1);bd.userData.lxSkip=true;g.add(bd);
+  g.add(mk(SPH,dk,0,-.14,.9,.78,.42,.95));/* rongga mulut */
+  const jaw=new THREE.Group();jaw.position.set(0,-.36,.32);jaw.add(mk(SPH,body,0,-.2,.72,.8,.3,1.08));g.add(jaw);
+  const tc=new THREE.ConeGeometry(.055,.42,5);
+  for(let i=0;i<9;i++){const z=.42+i*.115,k=i/8,x=.52-.38*k*k,sz=1-.45*Math.abs(k-.35);
+    for(const s of[-1,1]){const a=mk(tc,tw,s*x,-.3,z,sz,sz*(1.1-.3*k),sz);a.rotation.x=Math.PI;a.rotation.z=-s*.18;g.add(a);
+      const b=mk(tc,tw,s*x*.92,.03,z-.32,sz*.8,sz*.85,sz*.8);b.rotation.z=-s*.2;jaw.add(b)}}
+  for(const s of[-1,1]){g.add(mk(SPH,tw,s*.6,.6,.88,.17,.17,.17));g.add(mk(SPH,dk,s*.64,.62,.98,.085,.085,.085));
+    const pf=mk(SPH,fin,s*1.05,-.28,.1,.5,.09,.38);pf.rotation.y=s*.4;pf.rotation.z=s*.3;g.add(pf);
+    for(let i=0;i<5;i++)g.add(mk(SPH,ph,s*(.98-i*.03),-.35+i*.04,-.15-i*.3,.045,.045,.045))}
+  const df=mk(SPH,fin,0,1.0,-.85,.05,.5,.9);df.rotation.x=-.25;g.add(df);
+  const af=mk(SPH,fin,0,-.8,-1.0,.05,.32,.55);af.rotation.x=.25;g.add(af);
+  const tl=new THREE.Group();tl.position.set(0,0,-1.95);
+  const t1=mk(SPH,fin,0,.3,-.5,.05,.6,.72);t1.rotation.x=.4;const t2=mk(SPH,fin,0,-.3,-.5,.05,.6,.72);t2.rotation.x=-.4;tl.add(t1,t2,mk(SPH,body,0,0,-.2,.1,.2,.5));g.add(tl);
+  /* sungut: tabung dinamis + lentera di ujung */
+  const ag=mkTubeGeo(AN_N),at=new THREE.Mesh(ag,dk);at.frustumCulled=false;g.add(at);
+  const st=new THREE.Group(),bulb=mk(SPH,bl,0,0,0,.24,.24,.24);bulb.layers.enable(6);st.add(bulb);
+  const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:DGLOW,color:0xfff2a8,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));gs.scale.set(3.4,3.4,1);st.add(gs);
+  st.position.copy(AN_REST[AN_N]);g.add(st);
+  const V=()=>Array.from({length:AN_N+1},()=>new THREE.Vector3());
+  g.scale.setScalar(sc);g.userData={jaw,tl,gs,st,ag,ap:V(),aq:V(),al:V(),ar:V(),rs:true};return g}
+const _aV=new THREE.Vector3();
+/* fisika sungut: gerak ikan menyeret rantai (inersia), pegas lembut ke pose istirahat (lebih lentur ke ujung), arus air, tolak medan & pemain */
+function anglerPhys(o,dt,T,pos){const g=o.g,u=g.userData,h=Math.min(dt,.05),sc=g.scale.x,L=AN_L*sc,n=AN_N,P=u.ap,Q=u.aq,R=u.ar;
+  g.updateMatrixWorld(true);for(let i=0;i<=n;i++)g.localToWorld(R[i].copy(AN_REST[i]));
+  if(u.rs||P[n].distanceToSquared(R[n])>(n*L*1.6)**2){for(let i=0;i<=n;i++){P[i].copy(R[i]);Q[i].copy(R[i])}u.rs=false}
+  P[0].copy(R[0]);Q[0].copy(R[0]);const damp=Math.exp(-3.4*h);
+  for(let i=1;i<=n;i++){const f=i/n,p=P[i],q=Q[i],r=R[i],vx=(p.x-q.x)*damp,vy=(p.y-q.y)*damp,vz=(p.z-q.z)*damp;q.copy(p);
+    const kk=1-Math.exp(-h*(6.5-4.6*f));
+    p.x+=vx+(r.x-p.x)*kk+Math.sin(T*1.1+o.ph+i*.8)*.5*f*h*h*sc;
+    p.y+=vy+(r.y-p.y)*kk+Math.sin(T*.9+o.ph*1.7+i*.6)*.3*f*h*h*sc;
+    p.z+=vz+(r.z-p.z)*kk+Math.cos(T*1.3+o.ph+i*.7)*.5*f*h*h*sc}
+  for(let it=0;it<4;it++){
+    for(let i=0;i<n;i++){const a=P[i],b=P[i+1];_aV.subVectors(b,a);const d=_aV.length()||1e-4,df=(d-L)/d;
+      if(i===0)b.addScaledVector(_aV,-df);else{a.addScaledVector(_aV,df*.5);b.addScaledVector(_aV,-df*.5)}}
+    for(let i=2;i<=n;i++){const p=P[i],gy=DGH(p.x,p.z)+.12;if(p.y<gy)p.y=gy;
+      const dx=p.x-pos.x,dy=p.y-pos.y,dz=p.z-pos.z,d2=dx*dx+dy*dy+dz*dz;if(d2<.64&&d2>1e-6){const k=(.8-Math.sqrt(d2))/Math.sqrt(d2);p.x+=dx*k;p.y+=dy*k;p.z+=dz*k}}}
+  for(let i=0;i<=n;i++){_aV.copy(P[i]);g.worldToLocal(_aV);u.al[i].copy(_aV)}
+  fillTube(u.ag,u.al,.06,0);u.st.position.copy(u.al[n])}
 
 function mkWhale(){const g=new THREE.Group(),b=M(0x2b3a4a),bb=M(0x6b7a8a),dm=new THREE.MeshBasicMaterial({color:0x8fe9ff}),
   mk=(m,x,y,z,sx,sy,sz)=>{const o=new THREE.Mesh(SPH,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);return o};
@@ -3010,7 +3042,7 @@ function deepFauna(dt){const T=dClock();
     o.hy=Math.max(o.hy,DGH(o.hx,o.hz)+2.5);
     const a=o.ph+T*o.sp,g=o.g,u=g.userData;g.position.set(o.hx+Math.cos(a)*o.r,o.hy+Math.sin(T*.4+o.ph)*1.2,o.hz+Math.sin(a)*o.r*.8);
     g.rotation.y=Math.atan2(-Math.sin(a),Math.cos(a)*.8);u.jaw.rotation.x=.12+Math.sin(T*.8+o.ph)*.14;u.tl.rotation.y=Math.sin(T*2.4+o.ph)*.4;
-    const f=1+.18*Math.sin(T*3.1+o.ph)+.08*Math.sin(T*7.3);u.gs.scale.set(3.4*f,3.4*f,1)}
+    const f=1+.18*Math.sin(T*3.1+o.ph)+.08*Math.sin(T*7.3);u.gs.scale.set(3.4*f,3.4*f,1);if(dd<70)anglerPhys(o,dt,T,pos)}
   for(const w of DEEP.wh){if(!w.on)continue;const a=w.ph+T*(3/w.R)*w.dir,g=w.g,wx=w.cx+Math.cos(a)*w.R,wz=w.cz+Math.sin(a)*w.R;g.position.set(wx,Math.max(w.y+Math.sin(T*.1+w.ph)*5,DGH(wx,wz)+7),wz);
     g.rotation.y=Math.atan2(-Math.sin(a)*w.dir,Math.cos(a)*w.dir);g.rotation.z=Math.sin(T*.2+w.ph)*.05;g.userData.tail.rotation.x=Math.sin(T*1.2+w.ph)*.25}
   for(const o of DEEP.fx){if(!o.on)continue;const a=o.ph+T*o.sp,g=o.g,u=g.userData,x=o.hx+Math.cos(a)*o.r,z=o.hz+Math.sin(a)*o.r*.8;
