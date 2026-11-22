@@ -2278,7 +2278,8 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   tag(){if(LX.fr-(LX.tg|0)<20&&LX.tg!==undefined)return;LX.tg=LX.fr;
     S.traverse(o=>{if(!o.isMesh||((o.layers.mask&96)!==0)||o===LX.vol||o.userData.lxSkip)return;
       /* pemancar kecil (pet, ubur-ubur, angler, ikan) jangan jadi penghalus: cahaya di dalam tubuhnya sendiri akan terhalang. hanya oklusi besar (terrain/batu/kapal) */
-      const g=o.geometry;if(!g)return;if(!g.boundingSphere)g.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return;const ms=Array.isArray(o.material)?o.material:[o.material];
+      const g=o.geometry;if(!g)return;let hp=o.parent;while(hp&&hp!==cam)hp=hp.parent;/* item yang menempel di kamera (barometer, alat) selalu penghalus: cahaya di belakangnya tidak boleh tembus */
+      if(hp!==cam){if(!g.boundingSphere)g.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return}const ms=Array.isArray(o.material)?o.material:[o.material];
       for(const m of ms){if(!m||(m.transparent&&(m.opacity<.9||m.depthWrite===false))||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
   pass(){const u=LX.u;LX.tag();
     if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false,skinning:true,morphTargets:true,morphNormals:true});
@@ -2398,7 +2399,7 @@ function baroStep(dt,show){if(TP){BA.p=0;BARO.visible=false;HG.position.y=0;HG.v
   const pt=cl01(BA.p*2),pb=cl01((BA.p-.5)*2);
   HG.position.y=-1.05*pt*pt*(3-2*pt);HG.visible=pt<.999;
   if(pb<=0){BARO.visible=false;return}
-  BARO.visible=true;const v=show?eOB(pb):1-eIB(1-pb);
+  if(!BARO.visible)LX.tg=undefined;/* scan ulang penghalus segera saat muncul */BARO.visible=true;const v=show?eOB(pb):1-eIB(1-pb);
   if(show){const k=WX.ph+'|'+Math.ceil(WX.t)+'|'+WX.k.toFixed(2)+'|'+Math.round(STM.dmg)+'|'+AN.s;if(k!==BA.key){BA.key=k;baroDraw()}}
   const th=Math.tan(cam.fov*Math.PI/360)*.55,bx=Math.min(.3,th*cam.aspect-.14),by=-th+.13;
   BARO.position.set(bx,by-(1-v)*.55,-.55);BARO.rotation.set(.14,-.3+Math.sin(t*1.3)*.015,Math.sin(t*.9)*.012-.05*(1-v))}
