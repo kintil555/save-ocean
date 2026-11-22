@@ -3391,14 +3391,16 @@ XS.init=function(){if(XS.cv)return;XS.cv=document.createElement('canvas');XS.cv.
 function xvLoad(){if(VEH.g||VEH.loading||!THREE.GLTFLoader)return;VEH.loading=true;
   try{new THREE.GLTFLoader().parse(b64buf('a-xv').buffer,'',gl=>{try{xvSetup(gl.scene)}catch(e){console.error('xv setup',e)}VEH.loading=false},e=>{VEH.loading=false;console.error('xv model',e)})}catch(e){VEH.loading=false;console.error(e)}}
 /* ---- layar kamera luar: lubang pod ditutup layar yang menampilkan kamera di atas pod (panah = putar kamera + lampu, X = pusatkan). Kamera dalam pod hanya merender pod (layer 7); dunia lewat layar (render-ke-texture) ---- */
-const XF={rt:null,cam:new THREE.PerspectiveCamera(),mat:null,meshes:[],n:0,dir:new THREE.Vector3(0,0,-1)},_xsz=new THREE.Vector2();XF.cam.rotation.order='YXZ';
+/* layar HANYA di jendela depan model: busur 90 derajat (sudut 135-225, depan = -z) pada r=1.12 (di dalam tebal dinding 1.016-1.294), y 1.1665-1.7505 dari lantai pod. A = aspek jendela, hf = FOV horizontal kamera luar */
+const XF={rt:null,cam:new THREE.PerspectiveCamera(),mat:null,meshes:[],n:0,dir:new THREE.Vector3(0,0,-1),r:1.12,y0:1.1665,y1:1.7505,hf:1.66},_xsz=new THREE.Vector2();XF.cam.rotation.order='YXZ';
+XF.A=XF.r*Math.PI/2/(XF.y1-XF.y0);XF.vf=2*Math.atan(Math.tan(XF.hf/2)/XF.A)*180/Math.PI;
 function vehFeed(){const on=VEH.on&&state==='play'&&!TP&&!!XF.mat;for(const m of XF.meshes)m.visible=on;if(!on)return;
-  const qi=({low:0,medium:1,high:2,ultra:3})[Q]|0,every=qi>=2?1:qi===1?2:3,sc=[.4,.5,.6,.75][qi];if(XF.n++%every)return;
-  R.getDrawingBufferSize(_xsz);const w=Math.max(16,Math.round(_xsz.x*sc)),h=Math.max(16,Math.round(_xsz.y*sc));
+  const qi=({low:0,medium:1,high:2,ultra:3})[Q]|0,every=qi>=2?1:qi===1?2:3,sc=[.3,.38,.46,.55][qi];if(XF.n++%every)return;
+  R.getDrawingBufferSize(_xsz);const h=Math.max(64,Math.round(_xsz.y*sc)),w=Math.max(128,Math.round(h*XF.A));
   if(!XF.rt){XF.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:true});XF.rt.texture.encoding=R.outputEncoding}
   else if(XF.rt.width!==w||XF.rt.height!==h)XF.rt.setSize(w,h);
-  const u=XF.mat.uniforms;u.uT.value=XF.rt.texture;u.uRes.value.copy(_xsz);u.uTm.value=t;
-  const fc=XF.cam;fc.fov=cam.fov;fc.aspect=cam.aspect;fc.near=cam.near;fc.far=cam.far;fc.updateProjectionMatrix();
+  const u=XF.mat.uniforms;u.uT.value=XF.rt.texture;u.uTm.value=t;
+  const fc=XF.cam;fc.fov=XF.vf;fc.aspect=XF.A;fc.near=cam.near;fc.far=cam.far;fc.updateProjectionMatrix();
   fc.position.set(pos.x,pos.y+.05,pos.z);fc.rotation.set(VEH.fp,VEH.yaw+VEH.fy,0);fc.updateMatrixWorld();
   const ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;R.shadowMap.autoUpdate=false;R.setRenderTarget(XF.rt);R.clear();R.render(S,fc);R.setRenderTarget(ort);R.shadowMap.autoUpdate=sa}
 /* badan pod (dipakai pod lokal & pod pemain lain): klon model + lampu + baling + turret kamera */
@@ -3415,13 +3417,11 @@ function xvSetup(m){const mat=M(0xffffff,{alphaTest:.05,side:THREE.DoubleSide,em
   const b=xvBody(),g=b.g;VEH.lever=b.lever;VEH.prop=b.prop;VEH.tur=b.tur;VEH.thead=b.head;
   XS.init();const scr=new THREE.Mesh(new THREE.PlaneGeometry(.5,.27),new THREE.MeshBasicMaterial({map:XS.tex,fog:false}));scr.position.set(-.2,.8,-.77);scr.rotation.x=-1.15;g.add(scr);
   VEH.led=new THREE.MeshBasicMaterial({color:0x37ff7a});g.add(nfk(SPH,VEH.led,.43,.78,-.72,.03,.03,.03));
-  XF.mat=new THREE.ShaderMaterial({uniforms:{uT:{value:null},uRes:{value:new THREE.Vector2(1,1)},uTm:{value:0}},side:THREE.DoubleSide,fog:false,
-    vertexShader:'void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader:'uniform sampler2D uT;uniform vec2 uRes;uniform float uTm;void main(){vec2 uv=gl_FragCoord.xy/uRes;vec3 c=texture2D(uT,uv).rgb;float sl=.94+.06*sin(gl_FragCoord.y*1.7),nz=fract(sin(dot(gl_FragCoord.xy+uTm,vec2(12.9898,78.233)))*43758.5453);c=c*sl+(nz-.5)*.03;c*=vec3(.93,1.02,1.0);c*=.78+.22*smoothstep(1.2,.3,length(uv-.5)*1.4);gl_FragColor=vec4(c,1.);}'});
-  const sc=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,2.58,24,1,true),XF.mat);sc.position.y=1.3;
-  const fl=new THREE.Mesh(new THREE.CircleGeometry(1,24),XF.mat);fl.rotation.x=-Math.PI/2;fl.position.y=.03;
-  const ce=new THREE.Mesh(new THREE.CircleGeometry(1,24),XF.mat);ce.rotation.x=Math.PI/2;ce.position.y=2.59;
-  XF.meshes=[sc,fl,ce];for(const q of XF.meshes){q.frustumCulled=false;q.userData.lxSkip=true;q.visible=false;g.add(q)}
+  XF.mat=new THREE.ShaderMaterial({uniforms:{uT:{value:null},uTm:{value:0}},side:THREE.DoubleSide,fog:false,
+    vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader:'uniform sampler2D uT;uniform float uTm;varying vec2 vU;void main(){vec2 uv=vec2(1.-vU.x,vU.y);vec3 c=texture2D(uT,uv).rgb;float sl=.94+.06*sin(gl_FragCoord.y*1.7),nz=fract(sin(dot(gl_FragCoord.xy+uTm,vec2(12.9898,78.233)))*43758.5453);c=c*sl+(nz-.5)*.03;c*=vec3(.93,1.02,1.0);c*=.78+.22*smoothstep(1.2,.3,length(uv-.5)*1.4);gl_FragColor=vec4(c,1.);}'});
+  const sc=new THREE.Mesh(new THREE.CylinderGeometry(XF.r,XF.r,XF.y1-XF.y0,16,1,true,Math.PI*.75,Math.PI/2),XF.mat);sc.position.y=(XF.y0+XF.y1)/2;
+  XF.meshes=[sc];for(const q of XF.meshes){q.frustumCulled=false;q.userData.lxSkip=true;q.visible=false;g.add(q)}
   g.traverse(o=>o.layers.set(7));/* pod lokal hanya di layer 7 */
   S.traverse(o=>{if(o.isLight)o.layers.enable(7)});
   const mk=rot=>{const r=new THREE.Mesh(new THREE.RingGeometry(.96,1,96),new THREE.MeshBasicMaterial({color:0x6fe6ff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));r.rotation.x=rot;r.frustumCulled=false;r.visible=false;r.userData.lxSkip=true;DEEP.g.add(r);return r};
