@@ -2673,12 +2673,48 @@ function deepStream(dt,force){
 
 /* ===== LAYER INSTANCED GLOBAL (draw call tetap kecil): diisi ulang dari data chunk yang termuat saat DEEP.dirty ===== */
 const DCAP={b:900,c:2400,p:1000,o:200,f:2400,gl:700,v:160};
+/* flora bioluminesen v2: tangkai bersegmen melengkung + kepala manik bercahaya. ShaderMaterial instanced: goyang & cahaya merambat di vertex/fragment shader,
+   menciut + terang saat pemain <9 m, alpha = 1-kabut (pola sama dengan ubur-ubur). Skala instance: x=lebar/ukuran kepala, y=tinggi. */
+function dFloraMesh(cap){const S=7,K=6,P=[],H=[],KK=[],D=[],ix=[];
+  for(let i=0;i<S;i++){const y=i/(S-1);for(let k=0;k<K;k++){const a=k/K*6.2832;P.push(Math.cos(a)*(1-.82*y),y,Math.sin(a)*(1-.82*y));H.push(y);KK.push(0);D.push(0,0,0)}}
+  for(let i=0;i<S-1;i++)for(let k=0;k<K;k++){const a=i*K+k,b=i*K+(k+1)%K,c=a+K,d=b+K;ix.push(a,c,b,b,c,d)}
+  const ig=new THREE.IcosahedronGeometry(1,1),ip=ig.attributes.position,base=P.length/3;
+  for(let i=0;i<ip.count;i++){P.push(0,1,0);H.push(1);KK.push(1);D.push(ip.getX(i),ip.getY(i),ip.getZ(i))}
+  const hi=ig.index?Array.from(ig.index.array):[...Array(ip.count).keys()];for(const v of hi)ix.push(base+v);
+  const g=new THREE.BufferGeometry();g.index=new THREE.BufferAttribute(new Uint16Array(ix),1);
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('aH',new THREE.Float32BufferAttribute(H,1));g.setAttribute('aK',new THREE.Float32BufferAttribute(KK,1));g.setAttribute('aD',new THREE.Float32BufferAttribute(D,3));
+  g.setAttribute('aCol',new THREE.InstancedBufferAttribute(new Float32Array(cap*3),3).setUsage(THREE.DynamicDrawUsage));g.setAttribute('aPh',new THREE.InstancedBufferAttribute(new Float32Array(cap),1).setUsage(THREE.DynamicDrawUsage));
+  DEEP.fU={uT:{value:0},uP:{value:new THREE.Vector3()}};
+  const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:true,side:THREE.DoubleSide,
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uT:{value:0},uP:{value:new THREE.Vector3()}}]),
+    vertexShader:`#include <fog_pars_vertex>
+attribute float aH;attribute float aK;attribute vec3 aD;attribute vec3 aCol;attribute float aPh;uniform float uT;uniform vec3 uP;varying vec3 vC;varying float vH;varying float vK;varying float vN;
+void main(){mat4 M=modelMatrix*instanceMatrix;vec3 b=(M*vec4(0.,0.,0.,1.)).xyz;float sz=length(instanceMatrix[0].xyz);
+  vec4 w=M*vec4(position,1.);float h=aH;float k=smoothstep(4.,9.,distance(b,uP));
+  w.xyz+=aK*aD*sz*1.5;
+  float sw=sin(uT*1.2+aPh*6.28+h*2.2)*.22+sin(uT*.7+aPh*17.)*.12;vec2 dr=vec2(cos(aPh*6.28),sin(aPh*6.28));
+  w.x+=(dr.x*.5+sw)*h*h*(.6+sz*2.);w.z+=(dr.y*.5+sw*.8)*h*h*(.6+sz*2.);
+  w.y=b.y+(w.y-b.y)*mix(.4,1.,k);
+  vC=aCol;vH=h;vK=aK;vN=mix(1.7,1.,k);vec4 mv=viewMatrix*w;gl_Position=projectionMatrix*mv;
+#ifdef USE_FOG
+fogDepth=-mv.z;
+#endif
+}`,
+    fragmentShader:`uniform float uT;varying vec3 vC;varying float vH;varying float vK;varying float vN;
+#include <fog_pars_fragment>
+void main(){float pl=.6+.4*sin(vH*9.-uT*2.2);float g=mix(.35+.55*vH*vH,2.1,vK)*pl*vN;vec3 c=vC*g+vec3(.35)*vK;float ff=0.;
+#ifdef USE_FOG
+ff=1.-exp(-fogDensity*fogDensity*fogDepth*fogDepth);
+#endif
+gl_FragColor=vec4(c,(.55+.45*vK)*(1.-ff));}`});
+  m.uniforms.uT=DEEP.fU.uT;m.uniforms.uP=DEEP.fU.uP;
+  const o=new THREE.InstancedMesh(g,m,cap);o.count=0;o.frustumCulled=false;DEEP.g.add(o);return o}
 function dLayers(){const g=DEEP.g,L=DEEP.L={},im=(geo,mat,cap)=>{const m=new THREE.InstancedMesh(geo,mat,cap);m.setColorAt(0,_dc.setScalar(1));m.count=0;m.frustumCulled=false;g.add(m);return m};
   L.bld=[0,1,2].map(i=>im(RB[i],DBM[0],DCAP.b));
   const hg=new THREE.CylinderGeometry(.86,1,1,6,1);hg.translate(0,.5,0);L.col=im(hg,DBM[0],DCAP.c);
   const RBS=[5,6,7].map(sd=>mkRock(sd,10,8));L.peb=[0,1,2].map(k=>im(RBS[k],DBM[k],DCAP.p));
   const dCM=AL.mat(0xffffff,'coral');L.cor=CV.map(geo=>im(geo,dCM,DCAP.o));
-  const cg=new THREE.ConeGeometry(1,1,6);cg.translate(0,.5,0);L.flo=im(cg,new THREE.MeshBasicMaterial({color:0xffffff}),DCAP.f);
+  const cg=new THREE.ConeGeometry(1,1,6);cg.translate(0,.5,0);L.flo=dFloraMesh(DCAP.f);
   const pts=(cap,mat)=>{const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(cap*3),3).setUsage(THREE.DynamicDrawUsage));gg.setDrawRange(0,0);const p=new THREE.Points(gg,mat);p.frustumCulled=false;g.add(p);return p};
   L.glow=pts(DCAP.gl,new THREE.PointsMaterial({color:0x36f2d4,size:3,map:DGLOW,transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending}));
   /* cerobong hidrotermal: lathe + tutup menyala + glow + gelembung naik (posisi = fungsi waktu) */
@@ -2696,12 +2732,12 @@ function dFill(){const L=DEEP.L;if(!L)return;const nb=[0,0,0],np=[0,0,0],no=CV.m
     for(const q of D.col)if(nc<DCAP.c)put(L.col,nc++,q.x,q.y,q.z,q.rx,q.ry,q.rz,q.r,q.h,q.r,q.t);
     for(const q of D.peb)if(np[q.k]<DCAP.p)put(L.peb[q.k],np[q.k]++,q.x,q.y,q.z,0,q.ry,0,q.s*1.2,q.s*.7,q.s,q.t);
     for(const q of D.cor)if(no[q.g]<DCAP.o){const m=L.cor[q.g],i=no[q.g]++;_dm.position.set(q.x,q.y,q.z);_dm.rotation.set(0,q.ry,0);_dm.scale.set(q.s,q.s*q.sy,q.s);_dm.updateMatrix();m.setMatrixAt(i,_dm.matrix);m.setColorAt(i,_dc.setHex(DCORC[q.c]))}
-    for(const q of D.flo)if(nf<DCAP.f){_dm.position.set(q.x,q.y,q.z);_dm.rotation.set(q.rx,0,q.rz);_dm.scale.set(q.w1,q.hh,q.w2);_dm.updateMatrix();L.flo.setMatrixAt(nf,_dm.matrix);L.flo.setColorAt(nf++,_dc.setHex(DFC[q.c]));
+    for(const q of D.flo)if(nf<DCAP.f){_dm.position.set(q.x,q.y,q.z);_dm.rotation.set(q.rx,0,q.rz);_dm.scale.set(q.w1,q.hh,q.w2);_dm.updateMatrix();L.flo.setMatrixAt(nf,_dm.matrix);_dc.setHex(DFC[q.c]);{const A=L.flo.geometry.attributes;A.aCol.setXYZ(nf,_dc.r,_dc.g,_dc.b);A.aPh.setX(nf,Math.abs(Math.sin(q.x*12.9898+q.z*78.233)*43758.5453)%1)}nf++;
       if(q.g&&ng<DCAP.gl){gp[ng*3]=q.x;gp[ng*3+1]=q.y+q.hh;gp[ng*3+2]=q.z;ng++}}
     for(const q of D.vnt)if(nv<DCAP.v){V.push(q);put(L.vc,nv,q.x,q.y,q.z,0,0,0,q.r,q.h,q.r,1);_dm.position.set(q.x,q.y+q.h-.05,q.z);_dm.rotation.set(0,0,0);_dm.scale.set(q.r*.7,1,q.r*.7);_dm.updateMatrix();L.vcap.setMatrixAt(nv,_dm.matrix);
       vg[nv*3]=q.x;vg[nv*3+1]=q.y+q.h+.3;vg[nv*3+2]=q.z;nv++}}
   const fin=(m,n)=>{m.count=n;m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true};
-  L.bld.forEach((m,i)=>fin(m,nb[i]));fin(L.col,nc);L.peb.forEach((m,i)=>fin(m,np[i]));L.cor.forEach((m,i)=>fin(m,no[i]));fin(L.flo,nf);fin(L.vc,nv);fin(L.vcap,nv);
+  L.bld.forEach((m,i)=>fin(m,nb[i]));fin(L.col,nc);L.peb.forEach((m,i)=>fin(m,np[i]));L.cor.forEach((m,i)=>fin(m,no[i]));fin(L.flo,nf);{const A=L.flo.geometry.attributes;A.aCol.needsUpdate=A.aPh.needsUpdate=true}fin(L.vc,nv);fin(L.vcap,nv);
   L.glow.geometry.setDrawRange(0,ng);L.glow.geometry.attributes.position.needsUpdate=true;L.vglow.geometry.setDrawRange(0,nv);L.vglow.geometry.attributes.position.needsUpdate=true;L.bub.geometry.setDrawRange(0,nv*22)}
 const DCORC=[0xff6f91,0xff9671,0xffc75f,0xc34a9a,0x8e6cff,0x59d4c4];
 
@@ -2845,7 +2881,7 @@ function deepFauna(dt){const T=dClock();
 
 /* suasana: kelp bergoyang + salju laut mengikuti pemain */
 /* gelembung cerobong naik 17 m (posisi murni fungsi waktu) + denyut lava & cahaya ventilasi */
-function ventStep(T){const V=DEEP.vt;if(!V)return;const P=V.pa;let o=0;
+function ventStep(T){const V=DEEP.vt;if(!V)return;if(DEEP.fU){DEEP.fU.uT.value=T;DEEP.fU.uP.value.copy(pos)}const P=V.pa;let o=0;
   for(const v of V.v){for(let k=0;k<V.NB;k++){const s=(T*v.sp[k]+v.ph[k])%1;P[o++]=v.x+Math.sin(T*.9+k*2.1+v.ph[0]*6)*2.1*s;P[o++]=v.top+s*17;P[o++]=v.z+Math.cos(T*.8+k*1.7)*2.1*s}}
   if(DEEP.L)DEEP.L.vglow.material.size=9*(.85+.15*Math.sin(T*3.1));V.geo.attributes.position.needsUpdate=true;DEEP.gP.value=.75+.25*Math.sin(T*1.7)+.08*Math.sin(T*5.3)}
 function deepAmb(dt){const A=DEEP.amb;if(!A)return;const T=dClock();ventStep(T);
