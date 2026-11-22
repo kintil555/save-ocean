@@ -2290,7 +2290,7 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
     S.background=null;R.shadowMap.autoUpdate=false;R.setRenderTarget(LX.rt);R.setClearColor(0x000000,1);R.clear();
     try{cam.layers.set(5);S.overrideMaterial=LX.bm;R.render(S,cam);S.overrideMaterial=null;cam.layers.set(6);R.render(S,cam);LX.bloom()}
     finally{S.overrideMaterial=null;cam.layers.set(0);R.setRenderTarget(ort);R.setClearColor(_lxc,oa);S.background=ob;R.shadowMap.autoUpdate=sa}
-    u.uDo.value=1;u.uEg.value=1.1},
+    u.uDo.value=1;u.uEg.value=1.1;try{u.uDbg.value=localStorage.getItem('lxdebug')?1:0}catch(_){}},
   /* rantai bloom: 5 level (1/2..1/32 dari RT emisi); down = 13-tap Jimenez (stabil, tanpa kedip), up = tent 3x3 aditif */
   bchain(w,h){if(LX.bl)for(const t of LX.bl)t.dispose();LX.bl=[];let a=w,b=h;
     for(let i=0;i<5;i++){a=Math.max(2,a>>1);b=Math.max(2,b>>1);LX.bl.push(new THREE.WebGLRenderTarget(a,b,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:false}))}
@@ -2303,13 +2303,13 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   bloom(){const B=LX.bl,n=B.length;let src=LX.rt.texture,sw=LX.rt.width,sh=LX.rt.height;
     LX.bmesh.material=LX.bdm;for(let i=0;i<n;i++){LX.bdm.uniforms.tS.value=src;LX.bdm.uniforms.tx.value.set(1/sw,1/sh);R.setRenderTarget(B[i]);R.render(LX.bq,VC);src=B[i].texture;sw=B[i].width;sh=B[i].height}
     LX.bmesh.material=LX.bum;for(let i=n-2;i>=0;i--){LX.bum.uniforms.tS.value=B[i+1].texture;LX.bum.uniforms.tx.value.set(1/B[i+1].width,1/B[i+1].height);R.setRenderTarget(B[i]);R.render(LX.bq,VC)}},
-  pass2(){try{LX.pass()}catch(e){LX.dpx=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e)}},
+  pass2(){try{LX.pass()}catch(e){LX.dpx=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e);try{toast('LX depth error: '+e.message,'sad')}catch(_){}}},
   make(){const mk=n=>Array.from({length:n},()=>new THREE.Vector4());LX.vp=mk(LXV);LX.vc=mk(LXV);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
       uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uFP:CU.uFP,uFD:CU.uFD,uFL:CU.uFL,uT:CU.uT,
-        uBL:{value:30},uFg:{value:.03},uDk:{value:1},uN:{value:0},uVP:{value:LX.vp},uVC:{value:LX.vc},uDT:{value:null},uEM:{value:null},uTx:{value:new THREE.Vector2(.002,.002)},uDo:{value:0},uEg:{value:0}},
+        uBL:{value:30},uFg:{value:.03},uDk:{value:1},uN:{value:0},uVP:{value:LX.vp},uVC:{value:LX.vc},uDT:{value:null},uEM:{value:null},uTx:{value:new THREE.Vector2(.002,.002)},uDo:{value:0},uEg:{value:0},uDbg:{value:0}},
       vertexShader:'varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uFP,uFD;uniform float uT,uFL,uBL,uFg,uDk,uN,uDo,uEg;uniform vec4 uVP[16],uVC[16];uniform sampler2D uDT,uEM;uniform vec2 uTx;
+      fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uFP,uFD;uniform float uT,uFL,uBL,uFg,uDk,uN,uDo,uEg,uDbg;uniform vec4 uVP[16],uVC[16];uniform sampler2D uDT,uEM;uniform vec2 uTx;
 float sdAt(vec2 uv){float z=texture2D(uDT,uv).r;if(z>=.99999)return 80.;vec4 q=uInv*vec4(uv*2.-1.,z*2.-1.,1.);return min(80.,length(q.xyz/q.w));}
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);vec2 q=i.xy+i.z*37.,r=i.xy+(i.z+1.)*37.;
@@ -2320,10 +2320,11 @@ void main(){
   vec3 col=vec3(0.);
   /* jarak ke permukaan terdekat (terrain/batu/lengkung) per piksel, 4 tap agar tepi halus */
   float sd=80.;if(uDo>.5){vec2 e=uTx*.75;sd=.25*(sdAt(vUv+vec2(e.x,e.y))+sdAt(vUv+vec2(-e.x,e.y))+sdAt(vUv+vec2(e.x,-e.y))+sdAt(vUv-e));}
+  if(uDbg>.5)col+=vec3(0.,.5,.5)*clamp(1.-sd/40.,0.,1.);/* debug: permukaan penghalus berwarna cyan */
   /* halo titik: integral analitik 1/(1+r^2/a^2) sepanjang sinar kamera, dilemahkan kabut air */
   for(int i=0;i<16;i++){if(float(i)>=uN)break;
     vec3 L=uVP[i].xyz-uPos;float t0=dot(L,d),dl=length(L),h2=max(dot(L,L)-t0*t0,0.),a=uVP[i].w,c=sqrt(a*a+h2);
-    float I=a*a/c*max(atan((min(60.,sd)-t0)/c)-atan(-t0/c),0.)*exp(-pow(max(t0-sd,0.)/a,2.));/* cahaya di balik permukaan = terhalang (tanpa bocor lewat batu) */
+    float I=a*a/c*max(atan((min(60.,sd)-t0)/c)-atan(-t0/c),0.)*exp(-pow(max(t0-sd,0.)/max(a*.4,.1),2.));/* cahaya di balik permukaan = terhalang (tanpa bocor lewat batu) */
     col+=uVC[i].rgb*uVC[i].w*I*exp(-pow(dl*uFg,2.))*(1.-smoothstep(a*1.2,a*5.,sqrt(h2)));}
   /* senter: raymarch kerucut (bentuk sama dengan sorotan di permukaan), berakhir di bidang tempat berkas menabrak medan */
   if(uFL>.01){
