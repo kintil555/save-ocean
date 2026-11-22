@@ -61,3 +61,12 @@ Laut dalam: warna kabut air (`uFog`/`SB`) mengikuti kabut kedalaman; air digamba
 - Medan = satu fungsi `DEEP.gh` (landas pasir -> lereng -> dataran lumpur datar + PALUNG `DSP` + kaldera `DCR` + sinkhole `DSK`). Tambah palung/retakan = tambah entri di `DSP` (W lebar bibir, w lebar dasar, D kedalaman, lv=berlava, fl=retakan dangkal); mesh, kolisi, fauna, flora, cerobong, kolom basal ikut otomatis.
 - Kolisi medan di laut dalam = proyeksi ke NORMAL medan (`dgPush`, dipakai `collide` & `rdPush`), bukan clamp vertikal, supaya dinding curam tidak melontarkan pemain ke atas.
 - Lava = `dGlowStrip`/`dGlowMat` (aditif, alpha dikurangi kabut, denyut `DEEP.gP`); cerobong + gelembung = `ventStep`. Batu laut dalam WAJIB pakai `DBM` (basal). Dasar pakai tekstur 'siltN' via `AL`.
+
+# LAUT DALAM v4: tanpa batas (streaming chunk) — status
+Kode: blok `LAUT DALAM v4` di `index.html` (medan `DEEP.fld/gh`, `dData`, `dTBuild`, `deepStream`, `dLayers/dFill`, `dPopRun`). Chunk 64 m, radius muat `DCV`=3,5; hitbox & aset dibangkitkan deterministik dari `WORLD_SEED` (paritas multiplayer). Air permukaan 2600 m mengikuti kamera; tali maks 1000 m (`rdSeg` melebarkan segmen).
+## BELUM DIUJI DI BROWSER (hanya `node --check`; Chromium headless sandbox crash juga di `main`)
+- [ ] Uji: dive, jalan >300 m, tidak ada tembok/tepi, 2 akun seed sama -> palung sama, FPS stabil (budget stream 4 ms/frame; cek hitch saat lintas chunk).
+- [ ] Cek console bersih; kelp/meadow & lengkung batu terbuang benar saat chunk dibuang.
+## Belum dikerjakan
+- [ ] Fauna kerucut shader baru (tangkai bersegmen + kepala bercahaya, menciut saat pemain <9 m). Sekarang masih kerucut MeshBasicMaterial instanced (`L.flo`).
+- [ ] Tali: hitbox titik tengah bisa meleset pada segmen panjang (>1,2 m) saat tali >276 m.
