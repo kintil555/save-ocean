@@ -90,3 +90,12 @@ Blok `/* ===== LIGHT LIBRARY LX` di `index.html` (setelah `fxTick`/`petXp`, meng
 - Bila pass depth error -> `LX.dpx=true`, kembali ke `LX.vis` lama. BELUM diuji di browser (hanya `node --check`).
 - Bloom emisi = rantai down 13-tap (Jimenez/CoD:AW) + up tent 3x3 aditif, 5 level (`LX.bchain`, `LX.bloom`); gain `uEg` di `LX.pass`, bobot up `*.6` di `LX.bum`.
 - Fisika flora (shader `dFloraMesh` + replika `LX.head`) disamakan dengan `kelpStep`: tekuk menjauhi pemain radius 4.5 m, kuadratik, + kecepatan pemain (`DEEP.fU.uV`); menciut dekat pemain 2.5-6 m. Ubah rumus di SATU tempat = ubah keduanya.
+
+## Laut Dalam v5 (biome, fauna, senter, Explorer Vehicle)
+- **Biome dasar** (`dBio`, dipakai di `DEEP.fld`): pasir / lumpur / dataran batu / campuran (~35/30/35%, tambalan pasir di batu). Pasir = riak + bukit; batu = teras berundak. Warna vertex + detail shader (`DBIOGL`: riak pasir, retakan voronoi + strata batu) dirantai di atas `withCaustics` pada `dMat` (atribut `aBio`). `fld` kini mengembalikan `o.sd` (pasir) & `o.rk` (batu).
+- **Biota dasar** (`D.ben`, layer instanced `L.pen/cuc/star/spg/tub`): pena laut (pasir), teripang (dasar dalam), bintang rapuh, spons kaca (batu), cacing tabung (cerobong).
+- **Fauna baru** (`NF`, mesin generik `nfBuild/nfPop/nfStep`): oarfish, siphonophore, hiu enam insang, gurita dumbo, rattail, ubur-ubur sisir, cumi vampir, kepiting laba-laba, kawanan hatchetfish. Kepadatan hewan lama dinaikkan. Tambah spesies = satu entri `add({...})` di `nfBuild`.
+- **Senter**: kerucut lembut lebih lebar (`smoothstep .5-.93` + hotspot), falloff + serapan air + warna makin biru, volumetrik ~25% dari sebelumnya & lebih berbutir, gimbal (`FLD` lag), kedip (`flFlick`), salju laut menyala di berkas.
+- **Explorer Vehicle** (blok `EXPLORER VEHICLE`, model embed `a-xv` GLB dari model.gltf): beli di Toko ($3500, Lv5; `PG.up.xv`, rusak = `PG.up.xvb`, perbaikan $900). `B` naik/turun (hanya laut dalam). `pos` = sumbu pod setinggi mata; tabrakan lewat `collide()` dengan bola `XV_S`. Lambung = HP (benturan dv>0.7 m/s); 0% = tertekan air -> `exitDeep()` + `xvb=1`. Sonar `XS`: heightmap radar heading-up (HUD + layar di meja pod), hitbox, blip hewan, cincin ping 3D, bip kedekatan. Tuas model (`Lever`) bergerak mengikuti gas/belok.
+- Belum disinkron multiplayer (pemain lain tidak melihat pod). Tidak ada mekanik tekanan untuk perenang biasa (game tidak punya HP pemain).
+- Uji headless: Obscura + stub WebGL; skrip dibagi satu agar `let/const` antar script dinamis terbagi (kekurangan Obscura, bukan bug game).

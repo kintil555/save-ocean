@@ -50,3 +50,7 @@ Repo **Settings → Pages** → Source: `main` / root. URL: `https://<user>.gith
 ## Keamanan
 - anon key aman dipublikasikan (RLS yang menjaga data). **Jangan** commit service_role key atau token GitHub.
 - Token login dikirim lewat query WebSocket, jadi bisa muncul di log Worker.
+
+
+### Laut Dalam: Explorer Vehicle
+Beli *Explorer Vehicle* di Toko (I). Di Laut Dalam tekan **B** untuk naik/turun. W/S maju-mundur (pelan), A/D belok, Spasi/Shift naik-turun, L lampu, V kamera luar. Pantau sonar (kiri bawah dan layar di meja pod); benturan merusak lambung, 0% = tertekan air.
