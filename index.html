@@ -2323,7 +2323,7 @@ void main(){
   /* halo titik: integral analitik 1/(1+r^2/a^2) sepanjang sinar kamera, dilemahkan kabut air */
   for(int i=0;i<16;i++){if(float(i)>=uN)break;
     vec3 L=uVP[i].xyz-uPos;float t0=dot(L,d),dl=length(L),h2=max(dot(L,L)-t0*t0,0.),a=uVP[i].w,c=sqrt(a*a+h2);
-    float I=a*a/c*max(atan((min(60.,sd)-t0)/c)-atan(-t0/c),0.);
+    float I=a*a/c*max(atan((min(60.,sd)-t0)/c)-atan(-t0/c),0.)*exp(-pow(max(t0-sd,0.)/a,2.));/* cahaya di balik permukaan = terhalang (tanpa bocor lewat batu) */
     col+=uVC[i].rgb*uVC[i].w*I*exp(-pow(dl*uFg,2.))*(1.-smoothstep(a*1.2,a*5.,sqrt(h2)));}
   /* senter: raymarch kerucut (bentuk sama dengan sorotan di permukaan), berakhir di bidang tempat berkas menabrak medan */
   if(uFL>.01){
