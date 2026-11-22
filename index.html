@@ -2265,10 +2265,10 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   add(x,y,z,hex,i,a,pri,vs){const dx=x-cam.position.x,dy=y-cam.position.y,dz=z-cam.position.z,d2=dx*dx+dy*dy+dz*dz;if(d2>1764)return;
     if(!(i===i&&a===a&&x===x&&y===y&&z===z))return;let o=LX.pool[LX.n];if(!o)o=LX.pool[LX.n]={};LX.n++;o.x=x;o.y=y;o.z=z;o.c=LX.rgb(hex);o.i=i;o.a=a;o.pri=pri;o.vs=vs==null?1:vs;o.d=Math.sqrt(d2)},
   /* posisi pusat kepala flora = replika vertex shader dFloraMesh (tilt instance, goyang, menciut dekat pemain) */
-  head(q,o){const T=DEEP.fU.uT.value,P=DEEP.fU.uP.value,sx=Math.sin(q.rz),cz=Math.cos(q.rz),ph=Math.abs(Math.sin(q.x*12.9898+q.z*78.233)*43758.5453)%1,
-    sw=Math.sin(T*1.2+ph*6.28+2.2)*.22+Math.sin(T*.7+ph*17)*.12,sc=.6+q.w1*2,dx=q.x-P.x,dy=q.y-P.y,dz=q.z-P.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz),t=Math.min(1,Math.max(0,(d-4)/5)),k=t*t*(3-2*t);
-    const rd=Math.hypot(dx,dz)+.001,tp=Math.min(1,Math.max(0,(rd-2)/10)),pw=(1-tp*tp*(3-2*tp))*.9;
-    o.x=q.x+q.hh*-sx+(Math.cos(ph*6.28)*.15+sw+dx/rd*pw)*sc;o.z=q.z+q.hh*cz*Math.sin(q.rx)+(Math.sin(ph*6.28)*.15+sw*.8+dz/rd*pw)*sc;
+  head(q,o){const T=DEEP.fU.uT.value,P=DEEP.fU.uP.value,V=DEEP.fU.uV.value,sx=Math.sin(q.rz),cz=Math.cos(q.rz),ph=Math.abs(Math.sin(q.x*12.9898+q.z*78.233)*43758.5453)%1,
+    sw=Math.sin(T*1.2+ph*6.28+2.2)*.12+Math.sin(T*.7+ph*17)*.06,sc=.6+q.w1*2,dx=q.x-P.x,dy=q.y-P.y,dz=q.z-P.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz),t=Math.min(1,Math.max(0,(d-2.5)/3.5)),k=t*t*(3-2*t);
+    const rd=Math.hypot(dx,dz)+.001,ps=Math.min(1,Math.max(0,1-d/4.5)),bx=dx/rd*ps*ps*.9+V.x*ps*.06,bz=dz/rd*ps*ps*.9+V.z*ps*.06;
+    o.x=q.x+q.hh*-sx+(Math.cos(ph*6.28)*.05+sw+bx)*sc;o.z=q.z+q.hh*cz*Math.sin(q.rx)+(Math.sin(ph*6.28)*.05+sw*.8+bz)*sc;
     o.y=q.y+q.hh*cz*Math.cos(q.rx)*(.4+.6*k);return o},
   /* 1 bila garis kamera->cahaya bebas medan, 0 bila terhalang */
   vis(x,y,z){const cx=cam.position.x,cy=cam.position.y,cz=cam.position.z;
@@ -2282,14 +2282,27 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
     R.getDrawingBufferSize(_lxs);const w=Math.max(2,Math.ceil(_lxs.x/2)),h=Math.max(2,Math.ceil(_lxs.y/2));
     if(!LX.rt||LX.rt.width!==w||LX.rt.height!==h){if(LX.rt){LX.rt.depthTexture.dispose();LX.rt.dispose()}
       const dt=new THREE.DepthTexture(w,h);dt.type=THREE.UnsignedIntType;dt.minFilter=dt.magFilter=THREE.NearestFilter;
-      LX.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearMipmapLinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,generateMipmaps:true,depthBuffer:true,depthTexture:dt});
+      LX.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:true,depthTexture:dt});
+      LX.bchain(w,h);
       if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false});
-      u.uDT.value=dt;u.uEM.value=LX.rt.texture;u.uTx.value.set(1/w,1/h)}
+      u.uDT.value=dt;u.uEM.value=LX.bl[0].texture;u.uTx.value.set(1/w,1/h)}
     R.getClearColor(_lxc);const oa=R.getClearAlpha(),ob=S.background,ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;
     S.background=null;R.shadowMap.autoUpdate=false;R.setRenderTarget(LX.rt);R.setClearColor(0x000000,1);R.clear();
-    try{cam.layers.set(5);S.overrideMaterial=LX.bm;R.render(S,cam);S.overrideMaterial=null;cam.layers.set(6);R.render(S,cam)}
+    try{cam.layers.set(5);S.overrideMaterial=LX.bm;R.render(S,cam);S.overrideMaterial=null;cam.layers.set(6);R.render(S,cam);LX.bloom()}
     finally{S.overrideMaterial=null;cam.layers.set(0);R.setRenderTarget(ort);R.setClearColor(_lxc,oa);S.background=ob;R.shadowMap.autoUpdate=sa}
-    u.uDo.value=1;u.uEg.value=.7},
+    u.uDo.value=1;u.uEg.value=1.1},
+  /* rantai bloom: 5 level (1/2..1/32 dari RT emisi); down = 13-tap Jimenez (stabil, tanpa kedip), up = tent 3x3 aditif */
+  bchain(w,h){if(LX.bl)for(const t of LX.bl)t.dispose();LX.bl=[];let a=w,b=h;
+    for(let i=0;i<5;i++){a=Math.max(2,a>>1);b=Math.max(2,b>>1);LX.bl.push(new THREE.WebGLRenderTarget(a,b,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:false}))}
+    if(LX.bq)return;const vs='varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
+      hd='varying vec2 vUv;uniform sampler2D tS;uniform vec2 tx;vec3 s(float x,float y){return texture2D(tS,vUv+vec2(x,y)*tx).rgb;}',
+      mk=(fs,add)=>new THREE.ShaderMaterial({uniforms:{tS:{value:null},tx:{value:new THREE.Vector2()}},vertexShader:vs,fragmentShader:hd+fs,depthTest:false,depthWrite:false,transparent:!!add,blending:add?THREE.AdditiveBlending:THREE.NoBlending});
+    LX.bdm=mk('void main(){vec3 r=s(0.,0.)*.125+(s(-2.,2.)+s(2.,2.)+s(-2.,-2.)+s(2.,-2.))*.03125+(s(0.,2.)+s(-2.,0.)+s(2.,0.)+s(0.,-2.))*.0625+(s(-1.,1.)+s(1.,1.)+s(-1.,-1.)+s(1.,-1.))*.125;gl_FragColor=vec4(r,1.);}');
+    LX.bum=mk('void main(){vec3 r=(s(-1.,1.)+s(1.,1.)+s(-1.,-1.)+s(1.,-1.)+(s(0.,1.)+s(-1.,0.)+s(1.,0.)+s(0.,-1.))*2.+s(0.,0.)*4.)/16.;gl_FragColor=vec4(r*.6,1.);}',true);
+    LX.bq=new THREE.Scene();LX.bmesh=new THREE.Mesh(new THREE.PlaneGeometry(2,2),LX.bdm);LX.bmesh.frustumCulled=false;LX.bq.add(LX.bmesh)},
+  bloom(){const B=LX.bl,n=B.length;let src=LX.rt.texture,sw=LX.rt.width,sh=LX.rt.height;
+    LX.bmesh.material=LX.bdm;for(let i=0;i<n;i++){LX.bdm.uniforms.tS.value=src;LX.bdm.uniforms.tx.value.set(1/sw,1/sh);R.setRenderTarget(B[i]);R.render(LX.bq,VC);src=B[i].texture;sw=B[i].width;sh=B[i].height}
+    LX.bmesh.material=LX.bum;for(let i=n-2;i>=0;i--){LX.bum.uniforms.tS.value=B[i+1].texture;LX.bum.uniforms.tx.value.set(1/B[i+1].width,1/B[i+1].height);R.setRenderTarget(B[i]);R.render(LX.bq,VC)}},
   pass2(){try{LX.pass()}catch(e){LX.dpx=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e)}},
   make(){const mk=n=>Array.from({length:n},()=>new THREE.Vector4());LX.vp=mk(LXV);LX.vc=mk(LXV);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
@@ -2322,8 +2335,7 @@ void main(){
     col+=vec3(1.,.94,.8)*acc*uFL*.55;}
   /* bloom dari tekstur emisi: warna piksel pemancar (bola angler, kepala flora, cerobong) di-blur; sudah tertutup medan lewat depth */
   if(uEg>.001){/* blur lewat mip chain (halus, tanpa salinan/hantu di sekitar pemancar kecil) */
-    vec3 em=texture2D(uEM,vUv,2.).rgb*.5+texture2D(uEM,vUv,3.).rgb*1.1+texture2D(uEM,vUv,4.).rgb*2.+texture2D(uEM,vUv,5.).rgb*3.2;
-    col+=em*uEg;}
+    col+=texture2D(uEM,vUv).rgb*uEg;}
   col*=uDk;if(!(col.r>=0.&&col.g>=0.&&col.b>=0.))col=vec3(0.);col=min(col,vec3(8.));
   gl_FragColor=vec4(1.-exp(-col*1.1),1.);
 }`}));
@@ -2803,22 +2815,22 @@ function dFloraMesh(cap){const S=7,K=6,P=[],H=[],KK=[],D=[],UV=[],ix=[];
   g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('aH',new THREE.Float32BufferAttribute(H,1));g.setAttribute('aK',new THREE.Float32BufferAttribute(KK,1));
   g.setAttribute('aD',new THREE.Float32BufferAttribute(D,3));g.setAttribute('aU',new THREE.Float32BufferAttribute(UV,2));
   g.setAttribute('aCol',new THREE.InstancedBufferAttribute(new Float32Array(cap*3),3).setUsage(THREE.DynamicDrawUsage));g.setAttribute('aPh',new THREE.InstancedBufferAttribute(new Float32Array(cap),1).setUsage(THREE.DynamicDrawUsage));
-  DEEP.fU={uT:{value:0},uP:{value:new THREE.Vector3()}};
+  DEEP.fU={uT:{value:0},uP:{value:new THREE.Vector3()},uV:{value:new THREE.Vector3()}};
   const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:true,side:THREE.DoubleSide,
-    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uT:{value:0},uP:{value:new THREE.Vector3()}}]),
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uT:{value:0},uP:{value:new THREE.Vector3()},uV:{value:new THREE.Vector3()}}]),
     vertexShader:`#include <fog_pars_vertex>
-attribute float aH;attribute float aK;attribute vec3 aD;attribute vec2 aU;attribute vec3 aCol;attribute float aPh;uniform float uT;uniform vec3 uP;
+attribute float aH;attribute float aK;attribute vec3 aD;attribute vec2 aU;attribute vec3 aCol;attribute float aPh;uniform float uT;uniform vec3 uP,uV;
 varying vec3 vC;varying float vH;varying float vK;varying float vN;varying float vNz;varying vec2 vU;
 void main(){mat4 M=modelMatrix*instanceMatrix;vec3 b=(M*vec4(0.,0.,0.,1.)).xyz;float sz=length(instanceMatrix[0].xyz);
-  vec4 w=M*vec4(position,1.);float h=aH;float k=smoothstep(4.,9.,distance(b,uP));
+  vec4 w=M*vec4(position,1.);float h=aH;float k=smoothstep(2.5,6.,distance(b,uP));
   vec3 od=aD;
   if(aK>1.5&&aK<2.5){od.xz*=mix(.4,1.,k)*(1.+.1*sin(uT*1.1+aPh*6.28));od.y*=mix(1.25,1.,k);}
   else if(aK>2.5){od.y+=sin(uT*1.5+aPh*6.28+aU.x*2.)*.2*aU.x;}
   w.xyz+=step(.5,aK)*od*sz*1.5;
-  float sw=sin(uT*1.2+aPh*6.28+h*2.2)*.22+sin(uT*.7+aPh*17.)*.12;vec2 dr=vec2(cos(aPh*6.28),sin(aPh*6.28));
-  vec2 rl=b.xz-uP.xz;float rd=length(rl)+.001,pw=1.-smoothstep(2.,12.,rd);/* tekuk menjauhi pemain, nol bila jauh */
-  vec2 bd=rl/rd*pw*.9;
-  w.x+=(dr.x*.15+sw+bd.x)*h*h*(.6+sz*2.);w.z+=(dr.y*.15+sw*.8+bd.y)*h*h*(.6+sz*2.);
+  float sw=sin(uT*1.2+aPh*6.28+h*2.2)*.12+sin(uT*.7+aPh*17.)*.06;vec2 dr=vec2(cos(aPh*6.28),sin(aPh*6.28));
+  vec2 rl=b.xz-uP.xz;float rd=length(rl)+.001,ps=clamp(1.-distance(b,uP)/4.5,0.,1.);/* sama seperti kelp: radius 4.5 m, kuadratik, ikut kecepatan pemain */
+  vec2 bd=rl/rd*ps*ps*.9+uV.xz*ps*.06;
+  w.x+=(dr.x*.05+sw+bd.x)*h*h*(.6+sz*2.);w.z+=(dr.y*.05+sw*.8+bd.y)*h*h*(.6+sz*2.);
   w.y=b.y+(w.y-b.y)*mix(.4,1.,k);
   vC=aCol;vH=h;vK=aK;vU=aU;vN=mix(1.45,1.,k);vNz=(aK>.5&&aK<1.5)?normalize(mat3(viewMatrix)*aD).z:0.;
   vec4 mv=viewMatrix*w;gl_Position=projectionMatrix*mv;
@@ -2838,7 +2850,7 @@ void main(){float pl=.6+.4*sin(vH*9.-uT*2.2);vec3 c;float a;
 ff=1.-exp(-fogDensity*fogDensity*fogDepth*fogDepth);
 #endif
 gl_FragColor=vec4(c,a*(1.-ff));}`});
-  m.uniforms.uT=DEEP.fU.uT;m.uniforms.uP=DEEP.fU.uP;
+  m.uniforms.uT=DEEP.fU.uT;m.uniforms.uP=DEEP.fU.uP;m.uniforms.uV=DEEP.fU.uV;
   const o=new THREE.InstancedMesh(g,m,cap);o.count=0;o.frustumCulled=false;DEEP.g.add(o);return o}
 function dLayers(){const g=DEEP.g,L=DEEP.L={},im=(geo,mat,cap)=>{const m=new THREE.InstancedMesh(geo,mat,cap);m.setColorAt(0,_dc.setScalar(1));m.count=0;m.frustumCulled=false;g.add(m);return m};
   L.bld=[0,1,2].map(i=>im(RB[i],DBM[0],DCAP.b));
@@ -3013,7 +3025,7 @@ function deepFauna(dt){const T=dClock();
 
 /* suasana: kelp bergoyang + salju laut mengikuti pemain */
 /* gelembung cerobong naik 17 m (posisi murni fungsi waktu) + denyut lava & cahaya ventilasi */
-function ventStep(T){const V=DEEP.vt;if(!V)return;if(DEEP.fU){DEEP.fU.uT.value=T;DEEP.fU.uP.value.copy(pos)}const P=V.pa;let o=0;
+function ventStep(T){const V=DEEP.vt;if(!V)return;if(DEEP.fU){DEEP.fU.uT.value=T;DEEP.fU.uP.value.copy(pos);DEEP.fU.uV.value.copy(vel)}const P=V.pa;let o=0;
   for(const v of V.v){for(let k=0;k<V.NB;k++){const s=(T*v.sp[k]+v.ph[k])%1;P[o++]=v.x+Math.sin(T*.9+k*2.1+v.ph[0]*6)*2.1*s;P[o++]=v.top+s*17;P[o++]=v.z+Math.cos(T*.8+k*1.7)*2.1*s}}
   if(DEEP.L)DEEP.L.vglow.material.size=9*(.85+.15*Math.sin(T*3.1));V.geo.attributes.position.needsUpdate=true;DEEP.gP.value=.75+.25*Math.sin(T*1.7)+.08*Math.sin(T*5.3)}
 function deepAmb(dt){const A=DEEP.amb;if(!A)return;const T=dClock();ventStep(T);

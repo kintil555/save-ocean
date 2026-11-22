@@ -88,3 +88,5 @@ Blok `/* ===== LIGHT LIBRARY LX` di `index.html` (setelah `fxTick`/`petXp`, meng
 - `LX.safe` kini dipanggil SETELAH `deepStep` (sebelumnya sebelum fauna bergerak = glow tertinggal 1 frame).
 - Roh Laut tidak lagi jadi sumber LX di laut dalam (pet disembunyikan `deepWorld`, tapi `PETS` masih ada & ikut pemain).
 - Bila pass depth error -> `LX.dpx=true`, kembali ke `LX.vis` lama. BELUM diuji di browser (hanya `node --check`).
+- Bloom emisi = rantai down 13-tap (Jimenez/CoD:AW) + up tent 3x3 aditif, 5 level (`LX.bchain`, `LX.bloom`); gain `uEg` di `LX.pass`, bobot up `*.6` di `LX.bum`.
+- Fisika flora (shader `dFloraMesh` + replika `LX.head`) disamakan dengan `kelpStep`: tekuk menjauhi pemain radius 4.5 m, kuadratik, + kecepatan pemain (`DEEP.fU.uV`); menciut dekat pemain 2.5-6 m. Ubah rumus di SATU tempat = ubah keduanya.
