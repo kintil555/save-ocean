@@ -2276,7 +2276,7 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   /* pass setengah resolusi: layer 5 (terrain/batu/lengkung) -> hitam + depth texture; layer 6 (pemancar) -> warna emisi, di-depth-test terhadap layer 5 */
   /* penghalus global: semua mesh opaque di S (dunia dangkal, laut dalam, kapal, pemain) otomatis masuk layer 5; scan ulang ~3x/dtk */
   tag(){if(LX.fr-(LX.tg|0)<20&&LX.tg!==undefined)return;LX.tg=LX.fr;
-    S.traverse(o=>{if(!o.isMesh||o.layers.isEnabled(5))return;const ms=Array.isArray(o.material)?o.material:[o.material];
+    S.traverse(o=>{if(!o.isMesh||((o.layers.mask&32)!==0))return;const ms=Array.isArray(o.material)?o.material:[o.material];
       for(const m of ms){if(!m||(m.transparent&&(m.opacity<.9||m.depthWrite===false))||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
   pass(){const u=LX.u;LX.tag();
     if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false,skinning:true,morphTargets:true,morphNormals:true});
