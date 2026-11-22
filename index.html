@@ -2264,6 +2264,11 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   rgb(h){let c=LX.rgbC.get(h);if(!c){c=[(h>>16&255)/255,(h>>8&255)/255,(h&255)/255];LX.rgbC.set(h,c)}return c},
   add(x,y,z,hex,i,a,pri,vs){const dx=x-cam.position.x,dy=y-cam.position.y,dz=z-cam.position.z,d2=dx*dx+dy*dy+dz*dz;if(d2>1764)return;
     if(!(i===i&&a===a&&x===x&&y===y&&z===z))return;let o=LX.pool[LX.n];if(!o)o=LX.pool[LX.n]={};LX.n++;o.x=x;o.y=y;o.z=z;o.c=LX.rgb(hex);o.i=i;o.a=a;o.pri=pri;o.vs=vs==null?1:vs;o.d=Math.sqrt(d2)},
+  /* posisi pusat kepala flora = replika vertex shader dFloraMesh (tilt instance, goyang, menciut dekat pemain) */
+  head(q,o){const T=DEEP.fU.uT.value,P=DEEP.fU.uP.value,sx=Math.sin(q.rz),cz=Math.cos(q.rz),ph=Math.abs(Math.sin(q.x*12.9898+q.z*78.233)*43758.5453)%1,
+    sw=Math.sin(T*1.2+ph*6.28+2.2)*.22+Math.sin(T*.7+ph*17)*.12,sc=.6+q.w1*2,dx=q.x-P.x,dy=q.y-P.y,dz=q.z-P.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz),t=Math.min(1,Math.max(0,(d-4)/5)),k=t*t*(3-2*t);
+    o.x=q.x+q.hh*-sx+(Math.cos(ph*6.28)*.5+sw)*sc;o.z=q.z+q.hh*cz*Math.sin(q.rx)+(Math.sin(ph*6.28)*.5+sw*.8)*sc;
+    o.y=q.y+q.hh*cz*Math.cos(q.rx)*(.4+.6*k);return o},
   /* 1 bila garis kamera->cahaya bebas medan, 0 bila terhalang */
   vis(x,y,z){const cx=cam.position.x,cy=cam.position.y,cz=cam.position.z;
     for(let i=1;i<=8;i++){const t=i/10,px=cx+(x-cx)*t,py=cy+(y-cy)*t,pz=cz+(z-cz)*t;if(py<DGH(px,pz)+.1)return 0}return 1},
@@ -2284,7 +2289,7 @@ void main(){
   for(int i=0;i<16;i++){if(float(i)>=uN)break;
     vec3 L=uVP[i].xyz-uPos;float t0=dot(L,d),dl=length(L),h2=max(dot(L,L)-t0*t0,0.),a=uVP[i].w,c=sqrt(a*a+h2);
     float I=a*a/c*(atan((60.-t0)/c)-atan(-t0/c));
-    col+=uVC[i].rgb*uVC[i].w*I*exp(-pow(dl*uFg,2.))*(1.-smoothstep(a*2.,a*10.,sqrt(h2)));}
+    col+=uVC[i].rgb*uVC[i].w*I*exp(-pow(dl*uFg,2.))*(1.-smoothstep(a*1.2,a*5.,sqrt(h2)));}
   /* senter: raymarch kerucut (bentuk sama dengan sorotan di permukaan), berakhir di bidang tempat berkas menabrak medan */
   if(uFL>.01){
     float fd=dot(d,uFD),tb=40.;if(fd>.02)tb=clamp(dot(uFP+uFD*uBL-uPos,uFD)/fd,0.,40.);
@@ -2322,16 +2327,16 @@ void main(){
       LX.bl+=(Lb-LX.bl)*(1-Math.exp(-dt*9))}
     const u=LX.u;u.uN.value=m2;u.uBL.value=LX.bl;u.uFg.value=S.fog.density;u.uDk.value=.35+.65*Math.min(1,Math.max(0,(WL-cp.y)/45))}};
 /* sumber bawaan: Roh Laut (pet), flora bioluminesen, cerobong lava, lentera angler, ubur-ubur */
-LX.src(add=>{const tm=performance.now()*.001;for(const o of PETS){if(o.k!=='roh')continue;const P=o.g.position;add(P.x,P.y+.3,P.z,PETD.roh.c[o.v],2.1*(1+.18*Math.sin(tm*3+o.ph)),.8,1,1.2)}});
+LX.src(add=>{const tm=performance.now()*.001;for(const o of PETS){if(o.k!=='roh')continue;const P=o.g.position;add(P.x,P.y+.3,P.z,PETD.roh.c[o.v],2.1*(1+.18*Math.sin(tm*3+o.ph)),.35,1,.5)}});
 LX.src(add=>{if(!DEEP.on||!DEEP.built||!HQ())return;const cx=cam.position.x,cz=cam.position.z;
   for(const c of DEEP.ch.values()){const D=DEEP.dat.get(c.k);if(!D)continue;
-    for(const q of D.flo){const dx=q.x-cx,dz=q.z-cz;if(dx*dx+dz*dz>1764)continue;add(q.x,q.y+q.hh*.92,q.z,DFC[q.c],.9+3.2*q.w1+(q.g?.4:0),.45+2.4*q.w1,0,1)}}});
+    for(const q of D.flo){const dx=q.x-cx,dz=q.z-cz;if(dx*dx+dz*dz>1764)continue;LX.head(q,_lxh);add(_lxh.x,_lxh.y,_lxh.z,DFC[q.c],.9+3.2*q.w1+(q.g?.4:0),.45+2.4*q.w1,0,1)}}});
 LX.src(add=>{if(!DEEP.on||!DEEP.vt||!HQ())return;const pu=DEEP.gP.value;for(const q of DEEP.vt.v)add(q.x,q.y+q.h+.5,q.z,0xff7a2a,3.4*pu,1.7,0,1.5)});
 LX.src(add=>{const hq=HQ();if(!DEEP.on)return;const T=dClock();
   for(const o of DEEP.ang){const u=o.g.userData;if(!u||!u.gs)continue;u.gs.visible=!hq;if(!hq||!o.on)continue;u.gs.getWorldPosition(_lxv);add(_lxv.x,_lxv.y,_lxv.z,0xffeeaa,2.4*(1+.12*Math.sin(T*3.1+o.ph)),.8,0,1.3)}
   for(const o of DEEP.fx){const u=o.g.userData,l=u&&u.lxs;if(!l)continue;l[0].visible=!hq;if(!hq||!o.on)continue;l[0].getWorldPosition(_lxv);add(_lxv.x,_lxv.y,_lxv.z,l[1],l[2],l[3],0,1.2)}
   if(hq)for(const j of DEEP.jel){if(!j.on)continue;const p=j.g.position;add(p.x,p.y,p.z,0x7fd8ff,1.3,.9,0,.9)}});
-const _lxv=new THREE.Vector3();
+const _lxv=new THREE.Vector3(),_lxh={x:0,y:0,z:0};
 /* BADAI: jangkar wajib turun (kapal tidak rusak) & terkait (pemain tidak terseret) */
 const STM={dmg:0,warn:0,far:0};
 function stormStep(dt){STM.warn-=dt;if(WX.ph!=='storm'||WX.k<.25)return;
