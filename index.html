@@ -1242,31 +1242,34 @@ const SG=new THREE.IcosahedronGeometry(.5,0),SM=M(0xd9bd85),LM=M(0x3fd06e);
 function puff(x,y,z,n,mat){for(let i=0;i<n;i++){const m=new THREE.Mesh(SG,mat);m.position.set(x,y,z);S.add(m);F.push({m,v:new THREE.Vector3(rnd(-.9,.9),rnd(.8,1.7),rnd(-.9,.9)),life:1.2})}}
 const HM1=M(0xb89a62,{polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),HM2=M(0x6f542c,{polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}),HG1=new THREE.CircleGeometry(.95,22).rotateX(-Math.PI/2),HG2=new THREE.CircleGeometry(.6,22).rotateX(-Math.PI/2);
 function holeAt(x,z){let h=HOLES[hi%40];if(!h){h=new THREE.Group();h.add(new THREE.Mesh(HG1,HM1));const i=new THREE.Mesh(HG2,HM2);i.position.y=.02;h.add(i);S.add(h);HOLES[hi%40]=h}
-  hi++;h.visible=true;h.position.set(x,fh(x,z)+.08,z)}
-function dig(x,z){const y=fh(x,z);if(Math.random()<.2+.05*PG.sk.dig)seedDrop();holeAt(x,z);puff(x,y+.3,z,10,SM);playDig();
+  hi++;h.visible=true;h.position.set(x,DGH(x,z)+.08,z)}
+function dig(x,z){const y=DGH(x,z);if(Math.random()<.2+.05*PG.sk.dig)seedDrop();holeAt(x,z);puff(x,y+.3,z,10,SM);playDig();
+  if(DEEP.on){toast('Hanya lumpur...','sad');return}
   let best=null,bd=1.7;for(const q of TR)if(!q.got){const d=Math.hypot(q.x-x,q.z-z);if(d<bd){bd=d;best=q}}
   if(best){best.got=true;best.sp.visible=false;const m=best.tp.mk();m.position.set(best.x,fh(best.x,best.z)+.1,best.z);S.add(m);RV.push({m,tp:best.tp,t:0,y0:m.position.y})}
   else toast(TR.some(q=>!q.got&&Math.hypot(q.x-x,q.z-z)<4)?'Hampir! Gali di dekat sini':'Hanya pasir...','sad')}
-function pickDig(){cam.getWorldDirection(fw);for(let s=.3;s<=5.5;s+=.2){const x=pos.x+fw.x*s,y=pos.y+fw.y*s,z=pos.z+fw.z*s,g=fh(x,z);
-  if(y<=g+.05){if(Math.abs(x)>B-6||Math.abs(z)>B-6)return null;return{x,y:g,z}}}return null}
+function pickDig(){cam.getWorldDirection(fw);for(let s=.3;s<=5.5;s+=.2){const x=pos.x+fw.x*s,y=pos.y+fw.y*s,z=pos.z+fw.z*s,g=DGH(x,z);
+  if(y<=g+.05){if(!DEEP.on&&(Math.abs(x)>B-6||Math.abs(z)>B-6))return null;return{x,y:g,z}}}return null}
 function pickPlant(){cam.getWorldDirection(fw);let best=null,bd=4.2;
   const test=(o,t,x,y,z,nd,xp)=>{const tx=x-pos.x,ty=y-pos.y,tz=z-pos.z,d=Math.sqrt(tx*tx+ty*ty+tz*tz);if(d<bd&&d>.01&&(tx*fw.x+ty*fw.y+tz*fw.z)/d>.9){bd=d;best={o,t,x,y,z,need:nd,xp}}};
-  for(const m of meadows){if(Math.hypot(m.cx-pos.x,m.cz-pos.z)>m.R+6)continue;
+  for(const m of DEEP.on?DEEP.md:meadows){if(Math.hypot(m.cx-pos.x,m.cz-pos.z)>m.R+6)continue;
     for(const b of m.blades){if(b.hf<.5)continue;test(b,'b',b.x,b.y+(NR-1)*b.L*b.hf*.5,b.z,.45,1)}}
-  for(const k of kelps){if(Math.hypot(k.cx-pos.x,k.cz-pos.z)>k.R+6)continue;
+  for(const k of DEEP.on?DEEP.kp:kelps){if(Math.hypot(k.cx-pos.x,k.cz-pos.z)>k.R+6)continue;
     for(const b of k.strands){if(b.hf<.5)continue;const H=b.n*b.L*b.hf;test(b,'b',b.x,b.y+Math.max(0,Math.min(H,pos.y-b.y)),b.z,.9,3)}}
-  for(const w of weeds){if(!w.st.visible)continue;const H=w.L*6;test(w,'w',w.bx,w.by+Math.max(0,Math.min(H,pos.y-w.by)),w.bz,.6,2)}
+  if(!DEEP.on)for(const w of weeds){if(!w.st.visible)continue;const H=w.L*6;test(w,'w',w.bx,w.by+Math.max(0,Math.min(H,pos.y-w.by)),w.bz,.6,2)}
   return best}
 function harvest(p){if(p.t==='f'){farmHarvest(p.o);return}if(p.t==='b'){p.o.hf=.1;CUT.push({b:p.o,rg:t+45})}else{p.o.st.visible=false;p.o.rg=t+45;CUT.push({w:p.o,rg:t+45})}
   puff(p.x,p.y,p.z,5,LM);toast('+'+p.xp+' XP','xp');addXP(p.xp)}
 function toolStep(dt){const act=(keys.has('KeyE')||keys.has('KeyF')||mouseL)&&!busy(),r={tg:null,cut:false,prog:null,tip:''};
   tool.visible=SEL==='cutter'&&!TP;SH.visible=SEL==='shovel'&&!TP;ring.visible=false;NT.visible=SEL==='net'&&!TP;GH.visible=false;ring.material.color.setHex(0xffffff);
-  if(SEL==='cutter'){r.tg=pickTarget();
+  const dpn=DEEP.on;
+  if(SEL==='cutter'){r.tg=dpn?null:pickTarget();
     if(r.tg){r.cut=act;r.prog=r.tg.hp/r.tg.need;r.tip='Tahan E atau klik kiri untuk memotong'}
-    else{const p=pickFarm()||pickPlant();
+    else{const p=(dpn?null:pickFarm())||pickPlant();
       if(p){r.cut=act;r.tip=p.t==='f'?farmTip(p.o):'Tahan E atau klik kiri: potong rumput laut liar (XP)';if(!PC.p||PC.p.o!==p.o)PC.hp=0;PC.p=p;
         if(act)PC.hp+=dt;else PC.hp=Math.max(0,PC.hp-dt*.8);r.prog=PC.hp/p.need;if(PC.hp>=p.need){PC.hp=0;PC.p=null;harvest(p)}}
       else{PC.hp=0;PC.p=null}}}
+  else if(dpn&&(SEL==='seed'||SEL==='bed'||SEL==='net')){NT.rotation.z=0;r.tip=SEL==='net'?'Tidak ada sampah di laut dalam':'Lahan & bibit hanya bisa di laut dangkal'}
   else if(SEL==='seed')seedStep(dt,act,r);else if(SEL==='bed')bedStep(dt,act,r);else if(SEL==='net')netStep(dt,act,r);
   else{const d=pickDig();
     if(d){ring.visible=true;ring.position.set(d.x,d.y+.1,d.z);r.tip='Tahan E atau klik kiri untuk menggali';
@@ -2278,8 +2281,8 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   tag(){if(LX.fr-(LX.tg|0)<20&&LX.tg!==undefined)return;LX.tg=LX.fr;
     S.traverse(o=>{if(!o.isMesh||((o.layers.mask&96)!==0)||o===LX.vol||o.userData.lxSkip)return;
       /* pemancar kecil (pet, ubur-ubur, angler, ikan) jangan jadi penghalus: cahaya di dalam tubuhnya sendiri akan terhalang. hanya oklusi besar (terrain/batu/kapal) */
-      const g=o.geometry;if(!g)return;let hp=o.parent;while(hp&&hp!==cam)hp=hp.parent;/* item yang menempel di kamera (barometer, alat) selalu penghalus: cahaya di belakangnya tidak boleh tembus */
-      if(hp!==cam){if(!g.boundingSphere)g.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return}const ms=Array.isArray(o.material)?o.material:[o.material];
+      const g=o.geometry;if(!g)return;let hp=o.parent;while(hp&&hp!==cam&&hp!==PL.model)hp=hp.parent;/* item yang menempel di kamera (barometer, alat) selalu penghalus: cahaya di belakangnya tidak boleh tembus */
+      if(!hp){if(!g.boundingSphereg.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return}const ms=Array.isArray(o.material)?o.material:[o.material];
       for(const m of ms){if(!m||(m.transparent&&(m.opacity<.9||m.depthWrite===false))||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
   pass(){const u=LX.u;LX.tag();
     if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false,skinning:true,morphTargets:true,morphNormals:true});
@@ -2480,7 +2483,7 @@ function update(dt){
     if(Math.abs(pos.x)>LB-12)vel.x-=Math.sign(pos.x)*40*dt;if(Math.abs(pos.z)>LB-12)vel.z-=Math.sign(pos.z)*40*dt;
     pos.y=Math.min(surfW(pos.x,pos.z)+.55,pos.y);pos.x=Math.max(4-LB,Math.min(LB-4,pos.x));pos.z=Math.max(4-LB,Math.min(LB-4,pos.z));collide();surfPlayer(dt,d);
     cam.position.copy(pos);
-    WK=DEEP.on?{tg:null,cut:false,prog:null,tip:''}:toolStep(dt);tg=WK.tg;cutting=WK.cut;
+    WK=toolStep(dt);tg=WK.tg;cutting=WK.cut;
     if(TP){cam.position.addScaledVector(f,-3.4);cam.position.y=Math.min(WL+3.5,Math.max(cam.position.y+.5,DGH(cam.position.x,cam.position.z)+.4))}
   }else if(state==='menu'){
     const a=t*.15;cam.position.set(Math.cos(a)*15,-5,Math.sin(a)*15);cam.lookAt(0,-6,0);
