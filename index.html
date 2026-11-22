@@ -2282,7 +2282,7 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
     S.traverse(o=>{if(!o.isMesh||((o.layers.mask&96)!==0)||o===LX.vol||o.userData.lxSkip)return;
       /* pemancar kecil (pet, ubur-ubur, angler, ikan) jangan jadi penghalus: cahaya di dalam tubuhnya sendiri akan terhalang. hanya oklusi besar (terrain/batu/kapal) */
       const g=o.geometry;if(!g)return;let hp=o.parent;while(hp&&hp!==cam&&hp!==PL.model)hp=hp.parent;/* item yang menempel di kamera (barometer, alat) selalu penghalus: cahaya di belakangnya tidak boleh tembus */
-      if(!hp){if(!g.boundingSphereg.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return}const ms=Array.isArray(o.material)?o.material:[o.material];
+      if(!hp){if(!g.boundingSphere)g.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return}const ms=Array.isArray(o.material)?o.material:[o.material];
       for(const m of ms){if(!m||(m.transparent&&(m.opacity<.9||m.depthWrite===false))||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
   pass(){const u=LX.u;LX.tag();
     if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false,skinning:true,morphTargets:true,morphNormals:true});
