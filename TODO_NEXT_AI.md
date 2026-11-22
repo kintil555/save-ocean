@@ -56,3 +56,8 @@ Laut dalam: warna kabut air (`uFog`/`SB`) mengikuti kabut kedalaman; air digamba
 # LAUT DALAM: tumbuhan & ubur-ubur (v2.1)
 - Kelp/rumput laut dalam = `makeKelp`/`makeMeadow` dunia dangkal (parameter `gf`=fungsi tinggi, `par`=induk). Step di `deepStep` (`DEEP.kp`, `DEEP.md`). Jangan bikin versi terpisah.
 - Ubur-ubur: lonceng ShaderMaterial fresnel (alpha dikurangi kabut, bukan ditambah), tentakel = rantai verlet `jellyTent` (1 mesh ribbon). Ultra: inti dalam + urat radial + manik cahaya. r128: variabel kabut = `fogDepth` (bukan `vFogDepth`).
+
+# LAUT DALAM v3: palung samudra (terrain)
+- Medan = satu fungsi `DEEP.gh` (landas pasir -> lereng -> dataran lumpur datar + PALUNG `DSP` + kaldera `DCR` + sinkhole `DSK`). Tambah palung/retakan = tambah entri di `DSP` (W lebar bibir, w lebar dasar, D kedalaman, lv=berlava, fl=retakan dangkal); mesh, kolisi, fauna, flora, cerobong, kolom basal ikut otomatis.
+- Kolisi medan di laut dalam = proyeksi ke NORMAL medan (`dgPush`, dipakai `collide` & `rdPush`), bukan clamp vertikal, supaya dinding curam tidak melontarkan pemain ke atas.
+- Lava = `dGlowStrip`/`dGlowMat` (aditif, alpha dikurangi kabut, denyut `DEEP.gP`); cerobong + gelembung = `ventStep`. Batu laut dalam WAJIB pakai `DBM` (basal). Dasar pakai tekstur 'siltN' via `AL`.
