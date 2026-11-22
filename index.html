@@ -2204,7 +2204,7 @@ function leash(){if(AN.s!=='down')return;const dx=pos.x-AN.x,dy=pos.y-AN.y,dz=po
 const FLON={on:false,v:0},_fd=new THREE.Vector3(),_fo=new THREE.Vector3();
 /* senter: dihitung tepat sebelum render dari kamera final -> selalu menempel di pemain & searah kamera (juga di third-person) */
 const FLD=new THREE.Vector3(0,0,-1);let flT=performance.now();
-function flashSync(){cam.updateMatrixWorld(true);cam.getWorldDirection(_fd);const n=performance.now(),dtf=Math.min(.05,(n-flT)/1000);flT=n;
+function flashSync(){cam.updateMatrixWorld(true);cam.getWorldDirection(_fd);if(VEH.on&&!TP)_fd.copy(XF.dir);const n=performance.now(),dtf=Math.min(.05,(n-flT)/1000);flT=n;
   if(!FLON.on||FLON.v<.02||state!=='play')FLD.copy(_fd);else FLD.lerp(_fd,1-Math.exp(-dtf*16)).normalize();/* lampu bergimbal: sedikit tertinggal dari arah kamera */
   CU.uFD.value.copy(FLD);
   if(VEH.on)CU.uFP.value.copy(VEH.lamp);else{_fo.set(.2,-.2,0).applyQuaternion(cam.quaternion);CU.uFP.value.copy(state==='play'?pos:cam.position).add(_fo)}}
@@ -2476,7 +2476,7 @@ function update(dt){
   let tg=null,cutting=false;
   if(state==='play'){
     const bz=busy()?0:1,L=bz*((keys.has('ArrowLeft')?1:0)-(keys.has('ArrowRight')?1:0)),U=bz*((keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0));
-    yaw+=L*1.8*dt;pitch=Math.max(-1.4,Math.min(1.4,pitch+U*1.4*dt));
+    if(VEH.on&&!TP){VEH.fy=Math.max(-3.14,Math.min(3.14,VEH.fy+L*1.6*dt));VEH.fp=Math.max(-1.2,Math.min(1.2,VEH.fp+U*1.2*dt))}else{yaw+=L*1.8*dt;pitch=Math.max(-1.4,Math.min(1.4,pitch+U*1.4*dt))}
     cam.rotation.set(pitch,yaw,0);
     const f=_uf.set(-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)),
           r=_ur.set(Math.cos(yaw),0,-Math.sin(yaw)),d=_ud.set(0,0,0);
@@ -3352,7 +3352,7 @@ function exitDeep(){if(DEEP.busy||!DEEP.on)return;DEEP.busy=true;vehStow();
   fade(1,800).then(()=>{DEEP.on=false;DEEP.g.visible=false;deepUnloadAll();ropeDrop();closeRopeUI();PG.zone='shallow';saveP();const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1]);vel.set(0,0,0);yaw=0;pitch=-.12;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);
     wx.above=null;updReef();return fade(0,800)}).then(()=>{DEEP.busy=false;toast('Kembali ke kapal','gold')})}
 function deepReset(){vehStow();DEEP.on=DEEP.busy=false;DEEP.g.visible=false;if(DEEP.built)deepUnloadAll();ropeDrop();fade(0,0)}
-function deepTip(){if(VEH.on)return vehTip();const bn=boatNear();
+function deepTip(){if(VEH.on)return vehTip();{const dp=WL-pos.y;if(dp>XV_SAFE-40)return'⚠ Tekanan '+(1+dp/10).toFixed(0)+' atm · batas aman '+(1+XV_SAFE/10).toFixed(0)+' atm tanpa Explorer (B)'}const bn=boatNear();
   if(bn)return RD.on?'E: menu kapal (lepas tali / naik ke kapal)':'E: menu kapal · ambil tali dulu';
   return RD.on?'Tali '+Math.round(RD.L)+' m · I > Tali: panjangkan · T: lepas tali':'Tanpa tali! Kembali ke kapal & ambil tali (E)'}
 /* sembunyikan dasar laut, karang, hewan dunia atas selama di laut dalam; permukaan air, kapal, langit & cahaya tetap */
@@ -3384,23 +3384,51 @@ addEventListener('keydown',e=>{if(e.repeat||state!=='play'||busy()||!DEEP.on)ret
    `pos` = titik sumbu pod setinggi mata (XV_EYE di atas lantai) -> tali/arus/hewan memakai pos seperti pemain biasa. Tabrakan memakai collide() dengan bola XV_R. Sonar = XS (heightmap radar + cincin ping 3D). ===== */
 const XV_PRICE=3500,XV_FIX=900,XV_EYE=1.55,XV_R=1.45,XV_S=[[-.24,XV_R]];
 const VEH={on:false,parked:false,tr:false,g:null,lever:null,led:null,prop:[],rings:null,loading:false,yaw:0,yr:0,hull:100,thr:0,str:0,shake:0,flash:0,hit:0,crushed:false,
-  lamp:new THREE.Vector3(),pp:new THREE.Vector3(),pingT:0,pingA:9,pingO:new THREE.Vector3(),warn:0,beepT:0,hud:null,hT:0,dT:0,cT:0};
+  base:null,tur:null,thead:null,fy:0,fp:0,lamp:new THREE.Vector3(),pp:new THREE.Vector3(),pingT:0,pingA:9,pingO:new THREE.Vector3(),warn:0,beepT:0,hud:null,hT:0,dT:0,cT:0};
 const XS={R:80,N:40,cv:null,cx:null,tex:null,oc:null,ox:null,img:null,grid:null,idx:1e9,cxw:0,czw:0,cy:0,sweep:0,near:99,alt:99,obst:[]};
 XS.init=function(){if(XS.cv)return;XS.cv=document.createElement('canvas');XS.cv.width=XS.cv.height=256;XS.cx=XS.cv.getContext('2d');XS.tex=new THREE.CanvasTexture(XS.cv);
   XS.oc=document.createElement('canvas');XS.oc.width=XS.oc.height=XS.N;XS.ox=XS.oc.getContext('2d');XS.img=XS.ox.createImageData(XS.N,XS.N);XS.grid=new Float32Array(XS.N*XS.N).fill(1e3)};
 function xvLoad(){if(VEH.g||VEH.loading||!THREE.GLTFLoader)return;VEH.loading=true;
   try{new THREE.GLTFLoader().parse(b64buf('a-xv').buffer,'',gl=>{try{xvSetup(gl.scene)}catch(e){console.error('xv setup',e)}VEH.loading=false},e=>{VEH.loading=false;console.error('xv model',e)})}catch(e){VEH.loading=false;console.error(e)}}
-function xvSetup(m){const g=new THREE.Group(),mat=M(0xffffff,{alphaTest:.05,side:THREE.DoubleSide,emissive:0x202a31});
-  m.traverse(o=>{if(!o.isMesh)return;const mt=o.material;if(mt.map&&!mat.map){mt.map.encoding=THREE.LinearEncoding;mat.map=mt.map}o.material=mat;o.userData.lxSkip=true;o.frustumCulled=false});
-  mat.needsUpdate=true;g.add(m);VEH.lever=m.getObjectByName('Lever');
+/* ---- layar kamera luar: lubang pod ditutup layar yang menampilkan kamera di atas pod (panah = putar kamera + lampu, X = pusatkan). Kamera dalam pod hanya merender pod (layer 7); dunia lewat layar (render-ke-texture) ---- */
+const XF={rt:null,cam:new THREE.PerspectiveCamera(),mat:null,meshes:[],n:0,dir:new THREE.Vector3(0,0,-1)},_xsz=new THREE.Vector2();XF.cam.rotation.order='YXZ';
+function vehFeed(){const on=VEH.on&&state==='play'&&!TP&&!!XF.mat;for(const m of XF.meshes)m.visible=on;if(!on)return;
+  const qi=({low:0,medium:1,high:2,ultra:3})[Q]|0,every=qi>=2?1:qi===1?2:3,sc=[.4,.5,.6,.75][qi];if(XF.n++%every)return;
+  R.getDrawingBufferSize(_xsz);const w=Math.max(16,Math.round(_xsz.x*sc)),h=Math.max(16,Math.round(_xsz.y*sc));
+  if(!XF.rt){XF.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:true});XF.rt.texture.encoding=R.outputEncoding}
+  else if(XF.rt.width!==w||XF.rt.height!==h)XF.rt.setSize(w,h);
+  const u=XF.mat.uniforms;u.uT.value=XF.rt.texture;u.uRes.value.copy(_xsz);u.uTm.value=t;
+  const fc=XF.cam;fc.fov=cam.fov;fc.aspect=cam.aspect;fc.near=cam.near;fc.far=cam.far;fc.updateProjectionMatrix();
+  fc.position.set(pos.x,pos.y+.05,pos.z);fc.rotation.set(VEH.fp,VEH.yaw+VEH.fy,0);fc.updateMatrixWorld();
+  const ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;R.shadowMap.autoUpdate=false;R.setRenderTarget(XF.rt);R.clear();R.render(S,fc);R.setRenderTarget(ort);R.shadowMap.autoUpdate=sa}
+/* badan pod (dipakai pod lokal & pod pemain lain): klon model + lampu + baling + turret kamera */
+function xvBody(){const g=new THREE.Group(),m=VEH.base.clone(true),prop=[];m.traverse(o=>{if(o.isMesh){o.userData.lxSkip=true;o.frustumCulled=false}});g.add(m);
   const dk=M(0x2a3138),glow=new THREE.MeshBasicMaterial({color:0xfff2c8});
   for(const sd of[-1,1]){const lamp=nfk(new THREE.CylinderGeometry(.13,.18,.22,10),dk,sd*.62,1.45,-1.36,1,1,1);lamp.rotation.x=Math.PI/2;g.add(lamp);g.add(nfk(SPH,glow,sd*.62,1.45,-1.5,.11,.11,.11));
     const th=new THREE.Group();th.position.set(sd*.62,.9,1.4);const sh=nfk(new THREE.CylinderGeometry(.2,.2,.4,12,1,true),dk,0,0,0,1,1,1);sh.rotation.x=Math.PI/2;th.add(sh);
-    const fan=new THREE.Group();for(let i=0;i<3;i++){const b=nfk(BOX,dk,0,0,0,.34,.03,.08);b.rotation.z=i*2.094;fan.add(b)}fan.position.z=.18;th.add(fan);g.add(th);VEH.prop.push(fan)}
-  XS.init();const scr=new THREE.Mesh(new THREE.PlaneGeometry(.5,.27),new THREE.MeshBasicMaterial({map:XS.tex,fog:false}));scr.position.set(-.2,.8,-.77);scr.rotation.x=-1.15;scr.userData.lxSkip=true;g.add(scr);
+    const fan=new THREE.Group();for(let i=0;i<3;i++){const b=nfk(BOX,dk,0,0,0,.34,.03,.08);b.rotation.z=i*2.094;fan.add(b)}fan.position.z=.18;th.add(fan);g.add(th);prop.push(fan)}
+  const tur=new THREE.Group();tur.position.set(0,2.72,0);tur.add(nfk(new THREE.CylinderGeometry(.14,.18,.16,12),dk,0,0,0,1,1,1));
+  const head=new THREE.Group();head.position.y=.16;head.add(nfk(SPH,dk,0,0,0,.16,.14,.2));head.add(nfk(SPH,glow,0,0,-.2,.07,.07,.05));tur.add(head);g.add(tur);
+  g.rotation.order='YXZ';g.userData.keep=1;return{g,lever:m.getObjectByName('Lever'),prop,tur,head}}
+function xvSetup(m){const mat=M(0xffffff,{alphaTest:.05,side:THREE.DoubleSide,emissive:0x202a31});
+  m.traverse(o=>{if(!o.isMesh)return;const mt=o.material;if(mt.map&&!mat.map){mt.map.encoding=THREE.LinearEncoding;mat.map=mt.map}o.material=mat});mat.needsUpdate=true;VEH.base=m;
+  const b=xvBody(),g=b.g;VEH.lever=b.lever;VEH.prop=b.prop;VEH.tur=b.tur;VEH.thead=b.head;
+  XS.init();const scr=new THREE.Mesh(new THREE.PlaneGeometry(.5,.27),new THREE.MeshBasicMaterial({map:XS.tex,fog:false}));scr.position.set(-.2,.8,-.77);scr.rotation.x=-1.15;g.add(scr);
   VEH.led=new THREE.MeshBasicMaterial({color:0x37ff7a});g.add(nfk(SPH,VEH.led,.43,.78,-.72,.03,.03,.03));
+  XF.mat=new THREE.ShaderMaterial({uniforms:{uT:{value:null},uRes:{value:new THREE.Vector2(1,1)},uTm:{value:0}},side:THREE.DoubleSide,fog:false,
+    vertexShader:'void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader:'uniform sampler2D uT;uniform vec2 uRes;uniform float uTm;void main(){vec2 uv=gl_FragCoord.xy/uRes;vec3 c=texture2D(uT,uv).rgb;float sl=.94+.06*sin(gl_FragCoord.y*1.7),nz=fract(sin(dot(gl_FragCoord.xy+uTm,vec2(12.9898,78.233)))*43758.5453);c=c*sl+(nz-.5)*.03;c*=vec3(.93,1.02,1.0);c*=.78+.22*smoothstep(1.2,.3,length(uv-.5)*1.4);gl_FragColor=vec4(c,1.);}'});
+  const sc=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,2.58,24,1,true),XF.mat);sc.position.y=1.3;
+  const fl=new THREE.Mesh(new THREE.CircleGeometry(1,24),XF.mat);fl.rotation.x=-Math.PI/2;fl.position.y=.03;
+  const ce=new THREE.Mesh(new THREE.CircleGeometry(1,24),XF.mat);ce.rotation.x=Math.PI/2;ce.position.y=2.59;
+  XF.meshes=[sc,fl,ce];for(const q of XF.meshes){q.frustumCulled=false;q.userData.lxSkip=true;q.visible=false;g.add(q)}
+  g.traverse(o=>o.layers.set(7));/* pod lokal hanya di layer 7 */
+  S.traverse(o=>{if(o.isLight)o.layers.enable(7)});
   const mk=rot=>{const r=new THREE.Mesh(new THREE.RingGeometry(.96,1,96),new THREE.MeshBasicMaterial({color:0x6fe6ff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));r.rotation.x=rot;r.frustumCulled=false;r.visible=false;r.userData.lxSkip=true;DEEP.g.add(r);return r};
-  VEH.rings=[mk(-Math.PI/2),mk(0)];g.rotation.order='YXZ';g.visible=false;g.userData.keep=true;DEEP.g.add(g);VEH.g=g}
+  VEH.rings=[mk(-Math.PI/2),mk(0)];g.visible=false;DEEP.g.add(g);VEH.g=g}
+/* API untuk blok multiplayer */
+window.__xv={ready:()=>!!VEH.base,load:()=>xvLoad(),make:()=>xvBody(),eye:XV_EYE};
+window.__xvState=()=>VEH.on?{v:1,vw:+VEH.yaw.toFixed(3),pv:null}:(VEH.parked&&DEEP.on?{v:0,vw:0,pv:[+VEH.pp.x.toFixed(2),+VEH.pp.y.toFixed(2),+VEH.pp.z.toFixed(2),+VEH.yaw.toFixed(3)]}:{v:0,vw:0,pv:null});
 function xvHud(){if(VEH.hud)return;const st=document.createElement('style');
   st.textContent='#xv{position:fixed;left:14px;bottom:14px;z-index:6;display:none;pointer-events:none;font:600 12px/1.4 system-ui,sans-serif;color:#aef}#xv canvas{width:190px;height:190px;border-radius:50%;border:2px solid #2a8;box-shadow:0 0 18px #0f8a;background:#021016;display:block}#xv .t{margin-top:6px;background:#031a22cc;border:1px solid #2a8;border-radius:8px;padding:6px 9px;min-width:176px}#xv .b{height:7px;background:#123;border-radius:4px;margin:2px 0 4px;overflow:hidden}#xv .b i{display:block;height:100%;background:#4f8}#xvfx{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,#0000 45%,#f22d 100%)}';
   document.head.appendChild(st);const h=document.createElement('div');h.id='xv';XS.init();h.appendChild(XS.cv);const t=document.createElement('div');t.className='t';t.innerHTML='<div id="xvd"></div><div>Lambung <span id="xvh"></span></div><div class="b"><i id="xvb"></i></div><div id="xvs"></div>';h.appendChild(t);document.body.appendChild(h);
@@ -3437,6 +3465,7 @@ function xsDraw(){const c=XS.cx,W=256,Rm=XS.R,sc=W/2/Rm,N=XS.N,cell=Rm*2/N,vb=po
   for(const j of DEEP.jel)if(j.on)bl(j.g,'#9fe8ff',2);for(const o of DEEP.ang)if(o.on)bl(o.g,'#ffe08a',4);for(const o of DEEP.fx)if(o.on)bl(o.g,'#ff9ad0',3);
   for(const o of DEEP.iso)if(o.on)bl(o.g,'#c8c0a8',3);for(const o of DEEP.wh)if(o.on)bl(o.g,'#ffffff',7);for(const o of DEEP.sq)if(o.on)bl(o.g,'#ff7aa0',6);
   for(const sp of NF)for(const o of sp.pool)if(o.on&&o.g.position)bl(o.g,'#d8fff0',sp.disc&&sp.disc.id==='shk'?6:3);
+  for(const o of(window.__deepPeers?window.__deepPeers():[]))bl({position:o.cur},'#6fa8ff',5);
   c.restore();c.strokeStyle='#2fe0b8';c.globalAlpha=.35;c.lineWidth=1;for(let i=1;i<=4;i++){c.beginPath();c.arc(128,128,i*126/4,0,6.2832);c.stroke()}
   c.beginPath();c.moveTo(128,2);c.lineTo(128,254);c.moveTo(2,128);c.lineTo(254,128);c.stroke();c.globalAlpha=1;
   for(let i=0;i<14;i++){c.fillStyle='rgba(90,255,210,'+(.3*(1-i/14)).toFixed(3)+')';c.beginPath();c.moveTo(128,128);c.arc(128,128,126,XS.sweep-i*.05-.05,XS.sweep-i*.05);c.closePath();c.fill()}
@@ -3446,10 +3475,20 @@ function xsDraw(){const c=XS.cx,W=256,Rm=XS.R,sc=W/2/Rm,N=XS.N,cell=Rm*2/N,vb=po
   if(XS.near<8){c.strokeStyle='rgba(255,60,40,'+(.5+.5*Math.sin(t*14)).toFixed(2)+')';c.lineWidth=5;c.beginPath();c.arc(128,128,124,0,6.2832);c.stroke()}
   XS.tex.needsUpdate=true}
 /* ---- kendali ---- */
+/* ---- tekanan air: tanpa pod, di bawah XV_SAFE m (~16 atm) tubuh hancur seketika. Keluar pod di kedalaman fatal = mati. ---- */
+const XV_SAFE=150,PRESS={dead:false,warnT:0,arm:0};
+function xdeadEl(){let d=document.getElementById('xdead');if(!d){d=document.createElement('div');d.id='xdead';d.style.cssText='position:fixed;inset:0;z-index:50;pointer-events:none;opacity:0;transition:opacity .35s;background:radial-gradient(ellipse at center,#6a0000dd,#000000f2);color:#fff;display:flex;align-items:center;justify-content:center;font:700 26px system-ui,sans-serif;text-align:center;padding:20px';d.textContent='Tekanan air menghancurkan tubuhmu';document.body.appendChild(d)}return d}
+function pressDie(){if(PRESS.dead)return;PRESS.dead=true;xvAudio(false,0);xvThud(2);const d=xdeadEl();d.style.opacity=1;toast('Kamu mati: tekanan air terlalu tinggi tanpa Explorer','sad');
+  setTimeout(()=>{d.style.opacity=0;if(DEEP.on&&!DEEP.busy)exitDeep();setTimeout(()=>{PRESS.dead=false},1800)},1800)}
+function pressStep(dt){if(!DEEP.on||DEEP.busy||state!=='play'||VEH.on||VEH.tr||PRESS.dead)return;const dep=WL-pos.y;
+  if(dep>XV_SAFE){pressDie();return}
+  if(dep>XV_SAFE-40){PRESS.warnT-=dt;if(PRESS.warnT<=0){PRESS.warnT=6;toast('Tekanan '+(1+dep/10).toFixed(0)+' atm! Batas aman tanpa Explorer: '+(1+XV_SAFE/10).toFixed(0)+' atm','sad')}}}
 function vehDamage(d,v){VEH.hit=.4;VEH.hull=Math.max(0,VEH.hull-d);VEH.shake=Math.min(1.2,.3+v*.15);VEH.flash=1;xvThud(v);toast('Benturan! Lambung '+Math.round(VEH.hull)+'%','sad');if(VEH.hull<=0)vehCrush()}
 function vehCrush(){if(VEH.crushed)return;VEH.crushed=true;PG.up.xvb=1;saveP();VEH.shake=1.6;toast('Lambung retak! Tekanan air menghancurkan Explorer. Perbaiki di Toko (I)','sad');exitDeep()}
 function vehStep(dt,f){const k=c=>keys.has(c)?1:0,bz=busy()||VEH.tr?0:1,thrIn=bz*(k('KeyW')-k('KeyS')),turn=bz*(k('KeyA')-k('KeyD')),vIn=bz*(k('Space')-(k('ShiftLeft')||k('ShiftRight')||k('KeyC')?1:0)),hf=.45+.55*VEH.hull/100;
   VEH.yr+=(turn*.6*hf-VEH.yr)*(1-Math.exp(-2.4*dt));VEH.yaw+=VEH.yr*dt;yaw+=VEH.yr*dt;
+  if(keys.has('KeyX')){VEH.fy+=(0-VEH.fy)*(1-Math.exp(-6*dt));VEH.fp+=(0-VEH.fp)*(1-Math.exp(-6*dt))}
+  XF.dir.set(-Math.sin(VEH.yaw+VEH.fy)*Math.cos(VEH.fp),Math.sin(VEH.fp),-Math.cos(VEH.yaw+VEH.fy)*Math.cos(VEH.fp));
   VEH.thr+=(thrIn-VEH.thr)*(1-Math.exp(-3*dt));VEH.str+=(turn-VEH.str)*(1-Math.exp(-3*dt));
   const fx=-Math.sin(VEH.yaw),fz=-Math.cos(VEH.yaw),sp=(thrIn>0?3.4:1.7)*hf,a=1-Math.exp(-1.1*dt);
   vel.x+=(fx*thrIn*sp-vel.x)*a;vel.z+=(fz*thrIn*sp-vel.z)*a;vel.y+=(vIn*1.9*hf-vel.y)*a;
@@ -3460,12 +3499,12 @@ function vehStep(dt,f){const k=c=>keys.has(c)?1:0,bz=busy()||VEH.tr?0:1,thrIn=bz
   cam.rotation.set(pitch,yaw,0);cam.position.set(pos.x+.12*Math.sin(VEH.yaw),pos.y+Math.sin(t*1.7)*.012,pos.z+.12*Math.cos(VEH.yaw));
   if(VEH.shake>0){cam.position.x+=(Math.random()-.5)*.06*VEH.shake;cam.position.y+=(Math.random()-.5)*.06*VEH.shake;cam.rotation.z=(Math.random()-.5)*.04*VEH.shake;VEH.shake=Math.max(0,VEH.shake-dt*1.6)}
   if(TP){cam.position.addScaledVector(f,-7.5);cam.position.y=Math.min(WL+3,Math.max(cam.position.y+1,DGH(cam.position.x,cam.position.z)+.4))}
-  VEH.lamp.set(pos.x+fx*1.55,pos.y-.1,pos.z+fz*1.55)}
-function vehPost(dt){const g=VEH.g;if(VEH.on&&!VEH.hud)xvHud();
+  VEH.lamp.set(pos.x+XF.dir.x*1.3,pos.y+.05+XF.dir.y*1.3,pos.z+XF.dir.z*1.3)}
+function vehPost(dt){pressStep(dt);const g=VEH.g;if(VEH.on&&!VEH.hud)xvHud();
   const show=DEEP.on&&(VEH.on||VEH.parked)&&!!g;if(g)g.visible=show;const hud=VEH.hud;
   if(hud){const hv=VEH.on&&state==='play'&&!tutOpen;hud.el.style.display=hv?'block':'none';if(!hv)hud.fx.style.opacity=0}
   if(!VEH.on||!g){xvAudio(false,0);if(VEH.rings)for(const r of VEH.rings)r.visible=false;if(g&&VEH.parked){g.position.copy(VEH.pp);g.rotation.y=VEH.yaw}return}
-  PL.model.visible=false;g.position.set(pos.x,pos.y-XV_EYE,pos.z);g.rotation.y=VEH.yaw;
+  PL.model.visible=false;g.position.set(pos.x,pos.y-XV_EYE,pos.z);g.rotation.y=VEH.yaw;if(VEH.tur){VEH.tur.rotation.y=VEH.fy;VEH.thead.rotation.x=VEH.fp}
   if(VEH.lever){VEH.lever.rotation.x=-.75*VEH.thr;VEH.lever.rotation.z=.3*VEH.str}
   for(const p of VEH.prop)p.rotation.z+=(4+34*Math.abs(VEH.thr)+10*Math.abs(VEH.str))*dt;
   if(VEH.led)VEH.led.color.setHex(VEH.hull>50?0x37ff7a:VEH.hull>25?0xffc040:(Math.sin(t*10)>0?0xff3030:0x300808));
@@ -3476,18 +3515,21 @@ function vehPost(dt){const g=VEH.g;if(VEH.on&&!VEH.hud)xvHud();
   const nr=XS.near;VEH.beepT-=dt;if(nr<10&&VEH.beepT<=0){xvBeep(nr<4?1500:1000,.08,.1);VEH.beepT=.12+nr*.07}
   VEH.flash=Math.max(0,VEH.flash-dt*2);if(hud)hud.fx.style.opacity=Math.min(1,Math.max(VEH.flash*.8,nr<3.5?.25+.15*Math.sin(t*14):0));
   xvAudio(true,Math.min(1,Math.hypot(vel.x,vel.z)/3.4));
-  VEH.hT-=dt;if(hud&&VEH.hT<=0){VEH.hT=.2;const dep=Math.max(0,WL-pos.y);hud.d.textContent='Kedalaman '+dep.toFixed(0)+' m · Tekanan '+(1+dep/10).toFixed(1)+' atm';
+  VEH.hT-=dt;if(hud&&VEH.hT<=0){VEH.hT=.2;const dep=Math.max(0,WL-pos.y);hud.d.textContent='Kedalaman '+dep.toFixed(0)+' m · Tekanan '+(1+dep/10).toFixed(1)+' atm'+(dep>XV_SAFE?' · di luar = FATAL':'');
     hud.h.textContent=Math.round(VEH.hull)+'%';hud.b.style.width=VEH.hull+'%';hud.b.style.background=VEH.hull>50?'#4f8':VEH.hull>25?'#fc4':'#f44';
     hud.s.textContent='Laju '+Math.hypot(vel.x,vel.z).toFixed(1)+' m/s · Dasar '+XS.alt.toFixed(0)+' m · Dekat '+(XS.near>=80?'—':XS.near.toFixed(1)+' m')}}
-function vehTip(){return'Explorer · W/S maju/mundur · A/D belok · Spasi/Shift naik/turun · L lampu · V kamera · B keluar'}
+function vehTip(){return'Explorer · W/S maju/mundur · A/D belok · Spasi/Shift naik/turun · ←→↑↓ kamera luar (X pusat) · L lampu · B keluar'}
 function vehStow(){VEH.on=false;VEH.parked=false;VEH.tr=false;VEH.hull=100;VEH.crushed=false;if(VEH.g)VEH.g.visible=false;if(VEH.rings)for(const r of VEH.rings)r.visible=false;if(VEH.hud){VEH.hud.el.style.display='none';VEH.hud.fx.style.opacity=0}xvAudio(false,0)}
 function vehToggle(){if(state!=='play'||busy()||VEH.tr||DEEP.busy)return;
   if(!DEEP.on){toast('Explorer hanya bisa dipakai di Laut Dalam','sad');return}
-  if(VEH.on){VEH.tr=true;fade(1,250).then(()=>{VEH.pp.set(pos.x,pos.y-XV_EYE,pos.z);VEH.on=false;VEH.parked=true;pos.x+=Math.sin(VEH.yaw)*2.5;pos.z+=Math.cos(VEH.yaw)*2.5;vel.set(0,0,0);yaw=VEH.yaw;PL.model.visible=true;return fade(0,300)}).then(()=>{VEH.tr=false;toast('Keluar dari Explorer · B: masuk lagi')});return}
+  if(VEH.on){const dep=WL-pos.y,lethal=dep>XV_SAFE;
+    if(lethal&&performance.now()>PRESS.arm){PRESS.arm=performance.now()+3000;toast('BAHAYA: tekanan '+(1+dep/10).toFixed(0)+' atm di luar. Keluar dari Explorer = MATI. Tekan B lagi dalam 3 detik jika yakin.','sad');return}
+    VEH.tr=true;fade(1,250).then(()=>{VEH.pp.set(pos.x,pos.y-XV_EYE,pos.z);VEH.on=false;VEH.parked=true;pos.x+=Math.sin(VEH.yaw)*2.5;pos.z+=Math.cos(VEH.yaw)*2.5;vel.set(0,0,0);yaw=VEH.yaw;pitch=0;PL.model.visible=true;VEH.fy=VEH.fp=0;
+      if(lethal){VEH.tr=false;pressDie();return'dead'}return fade(0,300)}).then(r=>{if(r==='dead')return;VEH.tr=false;toast('Keluar dari Explorer · B: masuk lagi')});return}
   if(!PG.up.xv){toast('Beli Explorer Vehicle di Toko (I)','sad');return}
   if(PG.up.xvb){toast('Explorer rusak. Perbaiki di Toko (I)','sad');return}
   xvLoad();if(!VEH.g){toast('Memuat model Explorer...');return}
-  xvHud();VEH.tr=true;fade(1,250).then(()=>{let ex,ey,ez;
+  xvHud();S.traverse(o=>{if(o.isLight)o.layers.enable(7)});VEH.fy=VEH.fp=0;VEH.tr=true;fade(1,250).then(()=>{let ex,ey,ez;
     if(VEH.parked&&Math.hypot(VEH.pp.x-pos.x,VEH.pp.z-pos.z)<14){ex=VEH.pp.x;ey=VEH.pp.y+XV_EYE;ez=VEH.pp.z}
     else{ex=pos.x-Math.sin(yaw)*4.5;ez=pos.z-Math.cos(yaw)*4.5;ey=Math.max(pos.y,DEEP.gh(ex,ez)+XV_EYE+1.9);VEH.yaw=yaw}
     ey=Math.min(ey,surfW(ex,ez)-1);pos.set(ex,ey,ez);vel.set(0,0,0);VEH.on=true;VEH.parked=false;VEH.yr=0;VEH.thr=VEH.str=0;VEH.pingT=3;XS.idx=1e9;FLON.on=true;yaw=VEH.yaw;pitch=-.1;return fade(0,300)}).then(()=>{VEH.tr=false;toast('Explorer aktif · sonar menyala · tekanan air aman','gold')})}
@@ -3528,7 +3570,7 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);de
   if(skyOn){const ul=UL();skyM.visible=!ul;CLD.mesh.visible=true;GHM.visible=ul;GHM.position.copy(cam.position);GHM.material.uniforms.uT.value=t;GHM.material.uniforms.uS.value=WX.k;
     CCAM.fov=cam.fov;CCAM.aspect=cam.aspect;CCAM.updateProjectionMatrix();CCAM.position.copy(cam.position);CCAM.quaternion.copy(cam.quaternion);CCAM.updateMatrixWorld();R.getDrawingBufferSize(SKYB);{const ps=Math.max(3,Math.round(SKYB.y/220)),w=Math.ceil(SKYB.x/ps),h=Math.ceil(SKYB.y/ps);if(SKYRT.width!==w||SKYRT.height!==h)SKYRT.setSize(w,h);
     R.setRenderTarget(SKYRT);R.clear();R.render(CS,CCAM);R.setRenderTarget(null);R.render(BS,VC)}R.clearDepth();S.background=null}
-  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible&&!LX.dead){try{LX.pass2();R.render(LX.scene,VC)}catch(e){LX.dead=true;LX.vol.visible=false;console.error('LX pass mati:',e)}}if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
+  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();vehFeed();const vl=VEH.on&&state==='play';if(vl){cam.layers.set(7);if(TP)cam.layers.enable(0)}R.render(S,cam);if(vl)cam.layers.set(0);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible&&!LX.dead&&!(vl&&!TP)){try{LX.pass2();R.render(LX.scene,VC)}catch(e){LX.dead=true;LX.vol.visible=false;console.error('LX pass mati:',e)}}if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
 meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));meadows.forEach(m=>plantBounds(m,5,m.mh));kelps.forEach(k=>plantBounds(k,9,k.mk));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
 </script>
 <script type="text/plain" data-defer>
@@ -3675,19 +3717,28 @@ function addRP(id,name){
   o.gl=new THREE.Sprite(new THREE.SpriteMaterial({map:DGLOW,color:0xffc070,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));o.gl.scale.set(3,3,1);o.gl.visible=false;o.gl.userData.keep=1;S.add(o.gl);
   RP.set(id,o);return o}
 function dropRope(o){if(o.rm){S.remove(o.rm);o.rm.geometry.dispose();o.rm=null}o.rope=null}
-function delRP(id){const o=RP.get(id);if(!o)return;dropRope(o);S.remove(o.gl);o.gl.material.dispose();S.remove(o.r.g);S.remove(o.tag);o.tag.material.map.dispose();o.tag.material.dispose();RP.delete(id)}
+function delRP(id){const o=RP.get(id);if(!o)return;dropRope(o);if(o.pod){S.remove(o.pod.g);o.pod=null}S.remove(o.gl);o.gl.material.dispose();S.remove(o.r.g);S.remove(o.tag);o.tag.material.map.dispose();o.tag.material.dispose();RP.delete(id)}
 function clearAvatars(){[...RP.keys()].forEach(delRP)}
 function onPos(p){
   if(!p||!user||p.i===user.id)return;
   const o=RP.get(p.i)||addRP(p.i,String(p.n||'Pemain').slice(0,24));
-  o.tg.set(p.x,p.y,p.z);o.tyaw=p.w;o.pitch=p.p;o.spd=p.s;o.d=p.d?1:0;
+  o.tg.set(p.x,p.y,p.z);o.tyaw=p.w;o.pitch=p.p;o.spd=p.s;o.d=p.d?1:0;o.v=p.v?1:0;o.vw=+p.vw||0;o.pv=Array.isArray(p.pv)&&p.pv.length===4?p.pv:null;if(o.first)o.vyaw=o.vw;
   if(o.first){o.cur.copy(o.tg);o.yaw=o.tyaw;o.first=false}}
+/* pod Explorer pemain lain: terlihat saat mereka menyetir (di posisi pemain) atau memarkir (di titik parkir) */
+function podSync(o,vis,dt){const X=window.__xv,want=vis&&X&&(o.v||o.pv);
+  if(!want){if(o.pod)o.pod.g.visible=false;return}
+  if(!X.ready()){X.load();return}
+  if(!o.pod){o.pod=X.make();S.add(o.pod.g)}
+  const P=o.pod,g=P.g;g.visible=true;
+  if(o.v){g.position.set(o.cur.x,o.cur.y-X.eye,o.cur.z);let d=o.vw-(o.vyaw||0);d=((d+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;o.vyaw=(o.vyaw||0)+d*Math.min(1,dt*8);g.rotation.y=o.vyaw;
+    const k=Math.min(1,o.spd/3.4);if(P.lever)P.lever.rotation.x=-.75*k;for(const f of P.prop)f.rotation.z+=(4+34*k)*dt}
+  else{g.position.set(o.pv[0],o.pv[1],o.pv[2]);g.rotation.y=o.pv[3]}}
 let lt=performance.now();
 function rpLoop(now){
   requestAnimationFrame(rpLoop);const dt=Math.min(.05,(now-lt)/1000);lt=now;
   const on=state==='play';
   for(const o of RP.values()){
-    const r=o.r,g=r.g,vis=on&&(!!o.d===!!window.__deepOn);g.visible=o.tag.visible=vis;o.gl.visible=vis&&!!o.d;if(o.rm)o.rm.visible=on&&!!window.__deepOn&&!!o.d;if(!vis)continue;
+    const r=o.r,g=r.g,vis=on&&(!!o.d===!!window.__deepOn);g.visible=vis&&!o.v;o.tag.visible=vis;podSync(o,vis,dt);o.gl.visible=vis&&!!o.d;if(o.rm)o.rm.visible=on&&!!window.__deepOn&&!!o.d;if(!vis)continue;
     o.cur.lerp(o.tg,Math.min(1,dt*10));
     let d=o.tyaw-o.yaw;d=((d+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;o.yaw+=d*Math.min(1,dt*10);
     const sp=o.spd,k=Math.min(1,sp/7),amp=.25+.6*k;
@@ -3703,7 +3754,7 @@ function rpLoop(now){
     r.elbowL.rotation.x=.2+.5*(.5+.5*Math.sin(ph+1.2))*(.4+.6*k);r.elbowR.rotation.x=.2+.5*(.5+.5*Math.sin(ph+1.2+Math.PI))*(.4+.6*k);
     r.tor.rotation.y=Math.sin(ph)*.14*k;
     r.head.rotation.x=Math.max(-1.1,Math.min(1.1,o.pitch+o.lean));
-    o.tag.position.set(o.cur.x,o.cur.y+1.1,o.cur.z);o.gl.position.copy(o.cur)}}
+    o.tag.position.set(o.cur.x,o.cur.y+(o.v?2.2:1.1),o.cur.z);o.gl.position.copy(o.cur)}}
 requestAnimationFrame(rpLoop);
 function kick(){toast('Host keluar. Ruang ditutup.','sad');closeModes();q('home').click()}
 const prevP=new Map();
@@ -3747,9 +3798,9 @@ function leaveChan(){
 /* posisi ~8x/dtk (hanya jika bergerak, minimal 1x/dtk) */
 setInterval(()=>{
   if(!ch||state!=='play'||!user)return;
-  const x=+pos.x.toFixed(2),y=+pos.y.toFixed(2),z=+pos.z.toFixed(2),w=+yaw.toFixed(3),p=+pitch.toFixed(3),now=performance.now(),sig=x+','+y+','+z+','+w+','+p+','+(window.__deepOn?1:0);
+  const x=+pos.x.toFixed(2),y=+pos.y.toFixed(2),z=+pos.z.toFixed(2),w=+yaw.toFixed(3),p=+pitch.toFixed(3),now=performance.now(),xs=window.__xvState?window.__xvState():{v:0,vw:0,pv:null},sig=x+','+y+','+z+','+w+','+p+','+(window.__deepOn?1:0)+','+xs.v+','+xs.vw+','+(xs.pv?xs.pv.join(','):'');
   if(sig===lastSig&&now-lastSend<1000)return;
-  lastSig=sig;lastSend=now;send('p',{i:user.id,n:pname,x,y,z,w,p,s:+vel.length().toFixed(2),d:window.__deepOn?1:0})},125);
+  lastSig=sig;lastSend=now;send('p',{i:user.id,n:pname,x,y,z,w,p,s:+vel.length().toFixed(2),d:window.__deepOn?1:0,v:xs.v,vw:xs.vw,pv:xs.pv})},125);
 /* tali sendiri -> pemain lain (tiap simpul ke-2 + posisi pemain, tiap ~1.2 dtk bila berubah, ulang tiap 6 dtk) */
 let lastRK='off',lastRS=0;
 setInterval(()=>{

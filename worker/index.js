@@ -65,7 +65,7 @@ export class Room extends DurableObject {
     const p = m.p, num = v => typeof v === "number" && isFinite(v);
     if (m.e === "p") {
       if (!p || !num(p.x) || !num(p.y) || !num(p.z)) return;
-      this.bcast({ e: "p", p: { i: a.id, n: a.name, x: p.x, y: p.y, z: p.z, w: +p.w || 0, p: +p.p || 0, s: +p.s || 0, d: p.d ? 1 : 0 } }, ws);
+      this.bcast({ e: "p", p: { i: a.id, n: a.name, x: p.x, y: p.y, z: p.z, w: +p.w || 0, p: +p.p || 0, s: +p.s || 0, d: p.d ? 1 : 0, v: p.v ? 1 : 0, vw: +p.vw || 0, pv: Array.isArray(p.pv) && p.pv.length === 4 && p.pv.every(num) ? p.pv : null } }, ws);
     } else if (m.e === "rp") {
       if (!p || !Array.isArray(p.a) || p.a.length > 360 || p.a.length % 3 || !p.a.every(num)) return;
       this.bcast({ e: "rp", p: { i: a.id, a: p.a } }, ws);
