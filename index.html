@@ -2279,31 +2279,31 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
     S.traverse(o=>{if(!o.isMesh||o.layers.isEnabled(5))return;const ms=Array.isArray(o.material)?o.material:[o.material];
       for(const m of ms){if(!m||(m.transparent&&(m.opacity<.9||m.depthWrite===false))||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
   pass(){const u=LX.u;LX.tag();
+    if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false,skinning:true,morphTargets:true,morphNormals:true});
     R.getDrawingBufferSize(_lxs);const w=Math.max(2,Math.ceil(_lxs.x/2)),h=Math.max(2,Math.ceil(_lxs.y/2));
     if(!LX.rt||LX.rt.width!==w||LX.rt.height!==h){if(LX.rt){LX.rt.depthTexture.dispose();LX.rt.dispose()}
       const dt=new THREE.DepthTexture(w,h);dt.type=THREE.UnsignedIntType;dt.minFilter=dt.magFilter=THREE.NearestFilter;
-      LX.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:true,depthTexture:dt});
-      LX.bchain(w,h);
-      if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false,skinning:true,morphTargets:true,morphNormals:true});
-      u.uDT.value=dt;u.uEM.value=LX.bl[0].texture;u.uTx.value.set(1/w,1/h)}
+      const nr=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:true,depthTexture:dt});
+      LX.rt=null;LX.bchain(w,h);LX.rt=nr;
+      u.uDT.value=dt;u.uEM.value=LX.bt[0].texture;u.uTx.value.set(1/w,1/h)}
     R.getClearColor(_lxc);const oa=R.getClearAlpha(),ob=S.background,ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;
     S.background=null;R.shadowMap.autoUpdate=false;R.setRenderTarget(LX.rt);R.setClearColor(0x000000,1);R.clear();
     try{cam.layers.set(5);S.overrideMaterial=LX.bm;R.render(S,cam);S.overrideMaterial=null;cam.layers.set(6);R.render(S,cam);LX.bloom()}
     finally{S.overrideMaterial=null;cam.layers.set(0);R.setRenderTarget(ort);R.setClearColor(_lxc,oa);S.background=ob;R.shadowMap.autoUpdate=sa}
     u.uDo.value=1;u.uEg.value=1.1;try{u.uDbg.value=localStorage.getItem('lxdebug')?1:0}catch(_){}},
   /* rantai bloom: 5 level (1/2..1/32 dari RT emisi); down = 13-tap Jimenez (stabil, tanpa kedip), up = tent 3x3 aditif */
-  bchain(w,h){if(LX.bl)for(const t of LX.bl)t.dispose();LX.bl=[];let a=w,b=h;
-    for(let i=0;i<5;i++){a=Math.max(2,a>>1);b=Math.max(2,b>>1);LX.bl.push(new THREE.WebGLRenderTarget(a,b,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:false}))}
+  bchain(w,h){if(LX.bt)for(const t of LX.bt)t.dispose();LX.bt=[];let a=w,b=h;
+    for(let i=0;i<5;i++){a=Math.max(2,a>>1);b=Math.max(2,b>>1);LX.bt.push(new THREE.WebGLRenderTarget(a,b,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:false}))}
     if(LX.bq)return;const vs='varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
       hd='varying vec2 vUv;uniform sampler2D tS;uniform vec2 tx;vec3 s(float x,float y){return texture2D(tS,vUv+vec2(x,y)*tx).rgb;}',
       mk=(fs,add)=>new THREE.ShaderMaterial({uniforms:{tS:{value:null},tx:{value:new THREE.Vector2()}},vertexShader:vs,fragmentShader:hd+fs,depthTest:false,depthWrite:false,transparent:!!add,blending:add?THREE.AdditiveBlending:THREE.NoBlending});
     LX.bdm=mk('void main(){vec3 r=s(0.,0.)*.125+(s(-2.,2.)+s(2.,2.)+s(-2.,-2.)+s(2.,-2.))*.03125+(s(0.,2.)+s(-2.,0.)+s(2.,0.)+s(0.,-2.))*.0625+(s(-1.,1.)+s(1.,1.)+s(-1.,-1.)+s(1.,-1.))*.125;gl_FragColor=vec4(r,1.);}');
     LX.bum=mk('void main(){vec3 r=(s(-1.,1.)+s(1.,1.)+s(-1.,-1.)+s(1.,-1.)+(s(0.,1.)+s(-1.,0.)+s(1.,0.)+s(0.,-1.))*2.+s(0.,0.)*4.)/16.;gl_FragColor=vec4(r*.6,1.);}',true);
     LX.bq=new THREE.Scene();LX.bmesh=new THREE.Mesh(new THREE.PlaneGeometry(2,2),LX.bdm);LX.bmesh.frustumCulled=false;LX.bq.add(LX.bmesh)},
-  bloom(){const B=LX.bl,n=B.length;let src=LX.rt.texture,sw=LX.rt.width,sh=LX.rt.height;
+  bloom(){const B=LX.bt,n=B.length;let src=LX.rt.texture,sw=LX.rt.width,sh=LX.rt.height;
     LX.bmesh.material=LX.bdm;for(let i=0;i<n;i++){LX.bdm.uniforms.tS.value=src;LX.bdm.uniforms.tx.value.set(1/sw,1/sh);R.setRenderTarget(B[i]);R.render(LX.bq,VC);src=B[i].texture;sw=B[i].width;sh=B[i].height}
     LX.bmesh.material=LX.bum;for(let i=n-2;i>=0;i--){LX.bum.uniforms.tS.value=B[i+1].texture;LX.bum.uniforms.tx.value.set(1/B[i+1].width,1/B[i+1].height);R.setRenderTarget(B[i]);R.render(LX.bq,VC)}},
-  pass2(){try{LX.pass()}catch(e){LX.dpx=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e);try{toast('LX depth error: '+e.message,'sad')}catch(_){}}},
+  pass2(){try{LX.pass();LX.ef=0}catch(e){LX.dpx=true;LX.ef=(LX.ef|0)+1;if(LX.ef>=3)LX.dead=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e);if(LX.ef===1)try{toast('LX depth error: '+e.message,'sad')}catch(_){}}},
   make(){const mk=n=>Array.from({length:n},()=>new THREE.Vector4());LX.vp=mk(LXV);LX.vc=mk(LXV);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
       uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uFP:CU.uFP,uFD:CU.uFD,uFL:CU.uFL,uT:CU.uT,
