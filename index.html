@@ -1091,9 +1091,9 @@ const AL={list:[],
 const VS=new THREE.Scene(),VC=new THREE.OrthographicCamera(-1,1,1,-1,0,1);R.autoClear=false;
 function makeVol(){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
-    uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uTime:{value:0},uSt:{value:0},uAb:{value:0}},
+    uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uTime:{value:0},uSt:{value:0},uAb:{value:0},uDT:{value:null},uDo:{value:0}},
     vertexShader:'varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
-    fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uSun;uniform float uTime,uSt,uAb;
+    fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uSun;uniform float uTime,uSt,uAb,uDo;uniform sampler2D uDT;
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}
 float lit(vec3 p){float t=(6.-p.y)/uSun.y;vec2 q=p.xz+uSun.xz*t;
@@ -1107,7 +1107,8 @@ void main(){
   if(uAb>.5){tmax=70.;if(d.y<-.001)tmax=min(tmax,(6.-uPos.y)/d.y);}
   else{if(d.y<-.001)tmax=min(tmax,(-11.5-uPos.y)/d.y);
   if(d.y>.001)tmax=min(tmax,(6.-uPos.y)/d.y);}
-  const int N=32;float dt=tmax/float(N),j=h(vUv*vec2(1731.,911.)+uTime),acc=0.;
+  if(uDo>.5){float dz=texture2D(uDT,vUv).x;if(dz<.9999){vec4 q=uInv*vec4(vUv*2.-1.,dz*2.-1.,1.);tmax=min(tmax,length(q.xyz/q.w));}}/* oklusi: sinar berhenti di batu/medan/kapal (depth LX frame lalu) */
+  const int N=32;float dt=tmax/float(N),j=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715)))),acc=0.;/* jitter stabil (interleaved gradient noise): tanpa kedip/bintik acak tiap frame */
   for(int i=0;i<N;i++){float s=(float(i)+j)*dt;vec3 p=uPos+d*s;
     acc+=(uAb>.5?litA(p)*exp(-max(p.y-6.,0.)*.025)*exp(-s*.012):lit(p)*exp(-(6.-p.y)*.09)*exp(-s*.03))*dt;}
   float sd=max(dot(d,uSun),0.);
@@ -2469,7 +2470,7 @@ function shadowTick(now){if(!sun.castShadow)return;const mv=sun.position.x!==shX
 function update(dt){
   if(paused)dt=0;
   t+=dt;FRM++;fxTick(dt);
-  CU.uT.value=t;if(SW)SW.uniforms.uTime.value=t;if(HQ()){const ru=RY.material.uniforms;ru.uTime.value=t;ru.uSt.value=WX.k;ru.uAb.value=wx.above?1:0}
+  CU.uT.value=t;if(SW)SW.uniforms.uTime.value=t;if(HQ()){const ru=RY.material.uniforms;ru.uTime.value=t;ru.uSt.value=WX.k;ru.uAb.value=wx.above?1:0;const dok=!!(LX.rt&&LX.rt.depthTexture&&LX.vol&&LX.vol.visible&&!LX.dead&&!LX.dpx&&!(VEH.on&&state==='play'&&!TP));ru.uDT.value=dok?LX.rt.depthTexture:null;ru.uDo.value=dok?1:0}
   weedPhys(dt);plantFrustum();meadows.forEach((m,i)=>plantStep(m,dt,i,meadowStep));kelps.forEach((k,i)=>plantStep(k,dt,i+9,kelpStep));for(const b of PG.beds){const mm=BEDG.get(b);if(mm&&mm.kl)kelpStep(mm.kl,dt)}marineStep(dt);
   {const yb=Math.min(-12,cam.position.y-14);for(let i=0;i<NB;i++){bp[i*3+1]+=dt*1.5;if(bp[i*3+1]>5)bp[i*3+1]=yb+rnd(0,6);else if(bp[i*3+1]<yb-8)bp[i*3+1]=yb+rnd(0,6)}}bg.attributes.position.needsUpdate=true;
 
