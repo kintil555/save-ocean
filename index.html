@@ -2273,7 +2273,11 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   vis(x,y,z){const cx=cam.position.x,cy=cam.position.y,cz=cam.position.z;
     for(let i=1;i<=8;i++){const t=i/10,px=cx+(x-cx)*t,py=cy+(y-cy)*t,pz=cz+(z-cz)*t;if(py<DGH(px,pz)+.1)return 0}return 1},
   /* pass setengah resolusi: layer 5 (terrain/batu/lengkung) -> hitam + depth texture; layer 6 (pemancar) -> warna emisi, di-depth-test terhadap layer 5 */
-  pass(){const u=LX.u;if(!(DEEP.on&&DEEP.built)){u.uDo.value=0;u.uEg.value=0;return}
+  /* penghalus global: semua mesh opaque di S (dunia dangkal, laut dalam, kapal, pemain) otomatis masuk layer 5; scan ulang ~3x/dtk */
+  tag(){if(LX.fr-(LX.tg|0)<20&&LX.tg!==undefined)return;LX.tg=LX.fr;
+    S.traverse(o=>{if(!o.isMesh||o.layers.isEnabled(5))return;const ms=Array.isArray(o.material)?o.material:[o.material];
+      for(const m of ms){if(!m||m.transparent||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
+  pass(){const u=LX.u;LX.tag();
     R.getDrawingBufferSize(_lxs);const w=Math.max(2,Math.ceil(_lxs.x/2)),h=Math.max(2,Math.ceil(_lxs.y/2));
     if(!LX.rt||LX.rt.width!==w||LX.rt.height!==h){if(LX.rt){LX.rt.depthTexture.dispose();LX.rt.dispose()}
       const dt=new THREE.DepthTexture(w,h);dt.type=THREE.UnsignedIntType;dt.minFilter=dt.magFilter=THREE.NearestFilter;
@@ -2335,7 +2339,7 @@ void main(){
     for(let k=0;k<Math.max(m1,m2);k++){const o=L[k];
       if(k<m1){const f=hq?1-sm(18,28,o.d):1;U[k].set(o.x,o.y,o.z,o.i*f);V[k].set(o.c[0],o.c[1],o.c[2])}
       if(k<m2){const key=(Math.round(o.x*8)*73856093^Math.round(o.y*8)*19349663^Math.round(o.z*8)*83492791)|0;let e=LX.vm.get(key);
-        const tg=DEEP.on&&DEEP.built&&!LX.dpx?1:LX.vis(o.x,o.y,o.z);if(!e)e=LX.vm.set(key,{v:tg,f:0}).get(key);e.v+=(tg-e.v)*(1-Math.exp(-dt*9));e.f=LX.fr;
+        const tg=!LX.dpx?1:LX.vis(o.x,o.y,o.z);if(!e)e=LX.vm.set(key,{v:tg,f:0}).get(key);e.v+=(tg-e.v)*(1-Math.exp(-dt*9));e.f=LX.fr;
         const f=(1-sm(30,42,o.d))*e.v*o.vs;LX.vp[k].set(o.x,o.y,o.z,o.a);LX.vc[k].set(o.c[0]*o.i*.22,o.c[1]*o.i*.22,o.c[2]*o.i*.22,f)}}
     CU.uLN.value=m1;
     if(LX.fr%120===0)for(const[k,e]of LX.vm)if(LX.fr-e.f>60)LX.vm.delete(k);
@@ -2343,7 +2347,7 @@ void main(){
     if(DEEP.L){DEEP.L.glow.visible=!hq;DEEP.L.vglow.visible=!hq}
     const beam=FLON.v>.01&&state==='play',under=cp.y<surfY(cp.x,cp.z)-.05;
     if(!LX.vol)return;
-    const on=hq&&under&&(m2>0||beam||(DEEP.on&&DEEP.built&&!LX.dpx));LX.vol.visible=on;if(!on)return;
+    const on=hq&&under;LX.vol.visible=on;if(!on)return;
     if(beam){const F=CU.uFD.value,B=CU.uFP.value,top=surfY(B.x,B.z);let Lb=40;
       for(let s=1.5;s<=40;s+=1.5){const x=B.x+F.x*s,y=B.y+F.y*s,z=B.z+F.z*s;if(y<DGH(x,z)+.15||y>top){Lb=s;break}}
       LX.bl+=(Lb-LX.bl)*(1-Math.exp(-dt*9))}

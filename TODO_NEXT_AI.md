@@ -83,7 +83,7 @@ Blok `/* ===== LIGHT LIBRARY LX` di `index.html` (setelah `fxTick`/`petXp`, meng
 - [ ] Console bersih (shader `LX.vol`, flora); FPS Ultra di laut dalam; halo tidak bocor di balik punggungan; senter dangkal terlalu terang/redup (`uDk`).
 
 ## LX v2 (oklusi kedalaman + emisi)
-- `LX.pass` (setengah resolusi, hanya laut dalam): layer 5 = penghalus (terrain `tm`, lengkung, batu/karang/cerobong instanced) dirender hitam + depth texture; layer 6 = pemancar emisi (bola angler, kepala flora `L.flo`, tutup cerobong `L.vcap`) dirender warna aslinya, di-depth-test terhadap layer 5. Objek baru: `.layers.enable(5)` bila harus menghalangi cahaya, `.layers.enable(6)` bila material-nya memancar (tetap layer 0).
+- `LX.pass` (setengah resolusi, GLOBAL dangkal+dalam): layer 5 = penghalus, otomatis dari `LX.tag()` (semua mesh opaque di `S`, scan ~3x/dtk; tidak perlu flag manual) dirender hitam + depth texture; layer 6 = pemancar emisi (bola angler, kepala flora `L.flo`, tutup cerobong `L.vcap`) dirender warna aslinya, di-depth-test terhadap layer 5. Objek baru: `.layers.enable(5)` bila harus menghalangi cahaya, `.layers.enable(6)` bila material-nya memancar (tetap layer 0).
 - Shader `LX.vol`: halo titik diintegralkan hanya sampai permukaan terdekat per piksel (`sdAt`, 4 tap) -> tertutup sebagian = redup sebagian, bukan hilang total; senter juga dipotong; bloom emisi = blur warna RT emisi (`uEg`, `uEM`).
 - `LX.safe` kini dipanggil SETELAH `deepStep` (sebelumnya sebelum fauna bergerak = glow tertinggal 1 frame).
 - Roh Laut tidak lagi jadi sumber LX di laut dalam (pet disembunyikan `deepWorld`, tapi `PETS` masih ada & ikut pemain).
