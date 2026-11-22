@@ -2263,7 +2263,7 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   src(fn){LX.srcs.push(fn)},
   rgb(h){let c=LX.rgbC.get(h);if(!c){c=[(h>>16&255)/255,(h>>8&255)/255,(h&255)/255];LX.rgbC.set(h,c)}return c},
   add(x,y,z,hex,i,a,pri,vs){const dx=x-cam.position.x,dy=y-cam.position.y,dz=z-cam.position.z,d2=dx*dx+dy*dy+dz*dz;if(d2>1764)return;
-    let o=LX.pool[LX.n];if(!o)o=LX.pool[LX.n]={};LX.n++;o.x=x;o.y=y;o.z=z;o.c=LX.rgb(hex);o.i=i;o.a=a;o.pri=pri;o.vs=vs==null?1:vs;o.d=Math.sqrt(d2)},
+    if(!(i===i&&a===a&&x===x&&y===y&&z===z))return;let o=LX.pool[LX.n];if(!o)o=LX.pool[LX.n]={};LX.n++;o.x=x;o.y=y;o.z=z;o.c=LX.rgb(hex);o.i=i;o.a=a;o.pri=pri;o.vs=vs==null?1:vs;o.d=Math.sqrt(d2)},
   /* 1 bila garis kamera->cahaya bebas medan, 0 bila terhalang */
   vis(x,y,z){const cx=cam.position.x,cy=cam.position.y,cz=cam.position.z;
     for(let i=1;i<=8;i++){const t=i/10,px=cx+(x-cx)*t,py=cy+(y-cy)*t,pz=cz+(z-cz)*t;if(py<DGH(px,pz)+.1)return 0}return 1},
@@ -2293,10 +2293,11 @@ void main(){
       float cone=pow(ca,22.)*.8+pow(ca,90.)*.9,at=1./(1.+.14*r*r),nz=.7+.6*n3(p*.9+vec3(0.,uT*.15,uT*.1));
       acc+=cone*at*nz*exp(-s*.04)*dt;}
     col+=vec3(1.,.94,.8)*acc*uFL*.55;}
-  col*=uDk;
+  col*=uDk;if(!(col.r>=0.&&col.g>=0.&&col.b>=0.))col=vec3(0.);col=min(col,vec3(8.));
   gl_FragColor=vec4(1.-exp(-col*1.1),1.);
 }`}));
     m.frustumCulled=false;m.visible=false;LX.scene=new THREE.Scene();LX.scene.add(m);LX.vol=m;LX.u=m.material.uniforms},
+  safe(dt){if(LX.dead)return;try{LX.update(dt)}catch(e){LX.dead=true;CU.uLN.value=0;if(LX.vol)LX.vol.visible=false;console.error('LX mati:',e)}},
   update(dt){
     const hq=HQ(),cp=cam.position,sm=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
     LX.n=0;LX.fr++;for(const f of LX.srcs)f(LX.add);
@@ -2362,7 +2363,7 @@ function weatherStep(dt){
       else{WX.ph='clear';WX.t=rnd(90,150);toast('Badai reda');stormEnd()}}
     if(!DEEP.on)stormStep(dt);petXp(dt)}
   else{WX.ph='clear';WX.t=75;STM.dmg=0}
-  LX.update(dt);
+  LX.safe(dt);
   const tg=WX.ph==='storm'?1:WX.ph==='cloud'?.25:0;WX.k+=(tg-WX.k)*(1-Math.exp(-dt*.35));if(WX.k<.001)WX.k=0;
   const k=WX.k,ab=!!wx.above;
   HEMI.intensity=.85*(1-(ab?.6:.8)*k);sun.intensity=(QS[Q].sh?.9:.6)*(1-(ab?.85:.95)*k);
@@ -3154,7 +3155,7 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);de
   if(skyOn){const ul=UL();skyM.visible=!ul;CLD.mesh.visible=true;GHM.visible=ul;GHM.position.copy(cam.position);GHM.material.uniforms.uT.value=t;GHM.material.uniforms.uS.value=WX.k;
     CCAM.fov=cam.fov;CCAM.aspect=cam.aspect;CCAM.updateProjectionMatrix();CCAM.position.copy(cam.position);CCAM.quaternion.copy(cam.quaternion);CCAM.updateMatrixWorld();R.getDrawingBufferSize(SKYB);{const ps=Math.max(3,Math.round(SKYB.y/220)),w=Math.ceil(SKYB.x/ps),h=Math.ceil(SKYB.y/ps);if(SKYRT.width!==w||SKYRT.height!==h)SKYRT.setSize(w,h);
     R.setRenderTarget(SKYRT);R.clear();R.render(CS,CCAM);R.setRenderTarget(null);R.render(BS,VC)}R.clearDepth();S.background=null}
-  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible)R.render(LX.scene,VC);if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
+  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible&&!LX.dead){try{R.render(LX.scene,VC)}catch(e){LX.dead=true;LX.vol.visible=false;console.error('LX pass mati:',e)}}if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
 meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));meadows.forEach(m=>plantBounds(m,5,m.mh));kelps.forEach(k=>plantBounds(k,9,k.mk));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
 </script>
 <script type="text/plain" data-defer>
