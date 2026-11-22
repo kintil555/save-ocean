@@ -2272,12 +2272,27 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   /* 1 bila garis kamera->cahaya bebas medan, 0 bila terhalang */
   vis(x,y,z){const cx=cam.position.x,cy=cam.position.y,cz=cam.position.z;
     for(let i=1;i<=8;i++){const t=i/10,px=cx+(x-cx)*t,py=cy+(y-cy)*t,pz=cz+(z-cz)*t;if(py<DGH(px,pz)+.1)return 0}return 1},
+  /* pass setengah resolusi: layer 5 (terrain/batu/lengkung) -> hitam + depth texture; layer 6 (pemancar) -> warna emisi, di-depth-test terhadap layer 5 */
+  pass(){const u=LX.u;if(!(DEEP.on&&DEEP.built)){u.uDo.value=0;u.uEg.value=0;return}
+    R.getDrawingBufferSize(_lxs);const w=Math.max(2,Math.ceil(_lxs.x/2)),h=Math.max(2,Math.ceil(_lxs.y/2));
+    if(!LX.rt||LX.rt.width!==w||LX.rt.height!==h){if(LX.rt){LX.rt.depthTexture.dispose();LX.rt.dispose()}
+      const dt=new THREE.DepthTexture(w,h);dt.type=THREE.UnsignedIntType;dt.minFilter=dt.magFilter=THREE.NearestFilter;
+      LX.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:true,depthTexture:dt});
+      if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false});
+      u.uDT.value=dt;u.uEM.value=LX.rt.texture;u.uTx.value.set(1/w,1/h)}
+    R.getClearColor(_lxc);const oa=R.getClearAlpha(),ob=S.background,ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate;
+    S.background=null;R.shadowMap.autoUpdate=false;R.setRenderTarget(LX.rt);R.setClearColor(0x000000,1);R.clear();
+    try{cam.layers.set(5);S.overrideMaterial=LX.bm;R.render(S,cam);S.overrideMaterial=null;cam.layers.set(6);R.render(S,cam)}
+    finally{S.overrideMaterial=null;cam.layers.set(0);R.setRenderTarget(ort);R.setClearColor(_lxc,oa);S.background=ob;R.shadowMap.autoUpdate=sa}
+    u.uDo.value=1;u.uEg.value=.7},
+  pass2(){try{LX.pass()}catch(e){LX.dpx=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e)}},
   make(){const mk=n=>Array.from({length:n},()=>new THREE.Vector4());LX.vp=mk(LXV);LX.vc=mk(LXV);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
       uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uFP:CU.uFP,uFD:CU.uFD,uFL:CU.uFL,uT:CU.uT,
-        uBL:{value:30},uFg:{value:.03},uDk:{value:1},uN:{value:0},uVP:{value:LX.vp},uVC:{value:LX.vc}},
+        uBL:{value:30},uFg:{value:.03},uDk:{value:1},uN:{value:0},uVP:{value:LX.vp},uVC:{value:LX.vc},uDT:{value:null},uEM:{value:null},uTx:{value:new THREE.Vector2(.002,.002)},uDo:{value:0},uEg:{value:0}},
       vertexShader:'varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uFP,uFD;uniform float uT,uFL,uBL,uFg,uDk,uN;uniform vec4 uVP[16],uVC[16];
+      fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uFP,uFD;uniform float uT,uFL,uBL,uFg,uDk,uN,uDo,uEg;uniform vec4 uVP[16],uVC[16];uniform sampler2D uDT,uEM;uniform vec2 uTx;
+float sdAt(vec2 uv){float z=texture2D(uDT,uv).r;if(z>=.99999)return 80.;vec4 q=uInv*vec4(uv*2.-1.,z*2.-1.,1.);return min(80.,length(q.xyz/q.w));}
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);vec2 q=i.xy+i.z*37.,r=i.xy+(i.z+1.)*37.;
   return mix(mix(mix(h(q),h(q+vec2(1.,0.)),f.x),mix(h(q+vec2(0.,1.)),h(q+vec2(1.)),f.x),f.y),mix(mix(h(r),h(r+vec2(1.,0.)),f.x),mix(h(r+vec2(0.,1.)),h(r+vec2(1.)),f.x),f.y),f.z);}
@@ -2285,19 +2300,26 @@ void main(){
   vec4 v=uInv*vec4(vUv*2.-1.,1.,1.);v.xyz/=v.w;
   vec3 d=normalize((uCam*vec4(v.xyz,0.)).xyz);
   vec3 col=vec3(0.);
+  /* jarak ke permukaan terdekat (terrain/batu/lengkung) per piksel, 4 tap agar tepi halus */
+  float sd=80.;if(uDo>.5){vec2 e=uTx*.75;sd=.25*(sdAt(vUv+vec2(e.x,e.y))+sdAt(vUv+vec2(-e.x,e.y))+sdAt(vUv+vec2(e.x,-e.y))+sdAt(vUv-e));}
   /* halo titik: integral analitik 1/(1+r^2/a^2) sepanjang sinar kamera, dilemahkan kabut air */
   for(int i=0;i<16;i++){if(float(i)>=uN)break;
     vec3 L=uVP[i].xyz-uPos;float t0=dot(L,d),dl=length(L),h2=max(dot(L,L)-t0*t0,0.),a=uVP[i].w,c=sqrt(a*a+h2);
-    float I=a*a/c*(atan((60.-t0)/c)-atan(-t0/c));
+    float I=a*a/c*max(atan((min(60.,sd)-t0)/c)-atan(-t0/c),0.);
     col+=uVC[i].rgb*uVC[i].w*I*exp(-pow(dl*uFg,2.))*(1.-smoothstep(a*1.2,a*5.,sqrt(h2)));}
   /* senter: raymarch kerucut (bentuk sama dengan sorotan di permukaan), berakhir di bidang tempat berkas menabrak medan */
   if(uFL>.01){
     float fd=dot(d,uFD),tb=40.;if(fd>.02)tb=clamp(dot(uFP+uFD*uBL-uPos,uFD)/fd,0.,40.);
-    const int N=22;float dt=tb/float(N),j=h(vUv*vec2(1731.,911.)+uT),acc=0.;
+    tb=min(tb,sd);const int N=22;float dt=tb/float(N),j=h(vUv*vec2(1731.,911.)+uT),acc=0.;
     for(int i=0;i<N;i++){float s=(float(i)+j)*dt;vec3 p=uPos+d*s,w=p-uFP;float r=length(w)+.001,ca=max(dot(w/r,uFD),0.);
       float cone=pow(ca,22.)*.8+pow(ca,90.)*.9,at=1./(1.+.14*r*r),nz=.7+.6*n3(p*.9+vec3(0.,uT*.15,uT*.1));
       acc+=cone*at*nz*exp(-s*.04)*dt;}
     col+=vec3(1.,.94,.8)*acc*uFL*.55;}
+  /* bloom dari tekstur emisi: warna piksel pemancar (bola angler, kepala flora, cerobong) di-blur; sudah tertutup medan lewat depth */
+  if(uEg>.001){float asp=uTx.y/uTx.x;vec3 em=vec3(0.);
+    for(int i=0;i<12;i++){float f=float(i)+.5,r=sqrt(f/12.),an=f*2.39996;vec2 o=vec2(cos(an),sin(an)*asp)*r;
+      em+=texture2D(uEM,vUv+o*.014).rgb*1.5+texture2D(uEM,vUv+o*.05).rgb*.8;}
+    col+=em/12.*uEg;}
   col*=uDk;if(!(col.r>=0.&&col.g>=0.&&col.b>=0.))col=vec3(0.);col=min(col,vec3(8.));
   gl_FragColor=vec4(1.-exp(-col*1.1),1.);
 }`}));
@@ -2313,7 +2335,7 @@ void main(){
     for(let k=0;k<Math.max(m1,m2);k++){const o=L[k];
       if(k<m1){const f=hq?1-sm(18,28,o.d):1;U[k].set(o.x,o.y,o.z,o.i*f);V[k].set(o.c[0],o.c[1],o.c[2])}
       if(k<m2){const key=(Math.round(o.x*8)*73856093^Math.round(o.y*8)*19349663^Math.round(o.z*8)*83492791)|0;let e=LX.vm.get(key);
-        const tg=LX.vis(o.x,o.y,o.z);if(!e)e=LX.vm.set(key,{v:tg,f:0}).get(key);e.v+=(tg-e.v)*(1-Math.exp(-dt*9));e.f=LX.fr;
+        const tg=DEEP.on&&DEEP.built&&!LX.dpx?1:LX.vis(o.x,o.y,o.z);if(!e)e=LX.vm.set(key,{v:tg,f:0}).get(key);e.v+=(tg-e.v)*(1-Math.exp(-dt*9));e.f=LX.fr;
         const f=(1-sm(30,42,o.d))*e.v*o.vs;LX.vp[k].set(o.x,o.y,o.z,o.a);LX.vc[k].set(o.c[0]*o.i*.22,o.c[1]*o.i*.22,o.c[2]*o.i*.22,f)}}
     CU.uLN.value=m1;
     if(LX.fr%120===0)for(const[k,e]of LX.vm)if(LX.fr-e.f>60)LX.vm.delete(k);
@@ -2321,13 +2343,13 @@ void main(){
     if(DEEP.L){DEEP.L.glow.visible=!hq;DEEP.L.vglow.visible=!hq}
     const beam=FLON.v>.01&&state==='play',under=cp.y<surfY(cp.x,cp.z)-.05;
     if(!LX.vol)return;
-    const on=hq&&under&&(m2>0||beam);LX.vol.visible=on;if(!on)return;
+    const on=hq&&under&&(m2>0||beam||(DEEP.on&&DEEP.built&&!LX.dpx));LX.vol.visible=on;if(!on)return;
     if(beam){const F=CU.uFD.value,B=CU.uFP.value,top=surfY(B.x,B.z);let Lb=40;
       for(let s=1.5;s<=40;s+=1.5){const x=B.x+F.x*s,y=B.y+F.y*s,z=B.z+F.z*s;if(y<DGH(x,z)+.15||y>top){Lb=s;break}}
       LX.bl+=(Lb-LX.bl)*(1-Math.exp(-dt*9))}
     const u=LX.u;u.uN.value=m2;u.uBL.value=LX.bl;u.uFg.value=S.fog.density;u.uDk.value=.35+.65*Math.min(1,Math.max(0,(WL-cp.y)/45))}};
 /* sumber bawaan: Roh Laut (pet), flora bioluminesen, cerobong lava, lentera angler, ubur-ubur */
-LX.src(add=>{const tm=performance.now()*.001;for(const o of PETS){if(o.k!=='roh')continue;const P=o.g.position;add(P.x,P.y+.3,P.z,PETD.roh.c[o.v],2.1*(1+.18*Math.sin(tm*3+o.ph)),.35,1,.5)}});
+LX.src(add=>{const tm=performance.now()*.001;for(const o of PETS){if(o.k!=='roh'||DEEP.on||!o.g.visible)continue;const P=o.g.position;add(P.x,P.y+.3,P.z,PETD.roh.c[o.v],2.1*(1+.18*Math.sin(tm*3+o.ph)),.35,1,.5)}});
 LX.src(add=>{if(!DEEP.on||!DEEP.built||!HQ())return;const cx=cam.position.x,cz=cam.position.z;
   for(const c of DEEP.ch.values()){const D=DEEP.dat.get(c.k);if(!D)continue;
     for(const q of D.flo){const dx=q.x-cx,dz=q.z-cz;if(dx*dx+dz*dz>1764)continue;LX.head(q,_lxh);add(_lxh.x,_lxh.y,_lxh.z,DFC[q.c],.9+3.2*q.w1+(q.g?.4:0),.45+2.4*q.w1,0,1)}}});
@@ -2336,7 +2358,7 @@ LX.src(add=>{const hq=HQ();if(!DEEP.on)return;const T=dClock();
   for(const o of DEEP.ang){const u=o.g.userData;if(!u||!u.gs)continue;u.gs.visible=!hq;if(!hq||!o.on)continue;u.gs.getWorldPosition(_lxv);add(_lxv.x,_lxv.y,_lxv.z,0xffeeaa,2.4*(1+.12*Math.sin(T*3.1+o.ph)),.8,0,1.3)}
   for(const o of DEEP.fx){const u=o.g.userData,l=u&&u.lxs;if(!l)continue;l[0].visible=!hq;if(!hq||!o.on)continue;l[0].getWorldPosition(_lxv);add(_lxv.x,_lxv.y,_lxv.z,l[1],l[2],l[3],0,1.2)}
   if(hq)for(const j of DEEP.jel){if(!j.on)continue;const p=j.g.position;add(p.x,p.y,p.z,0x7fd8ff,1.3,.9,0,.9)}});
-const _lxv=new THREE.Vector3(),_lxh={x:0,y:0,z:0};
+const _lxv=new THREE.Vector3(),_lxh={x:0,y:0,z:0},_lxs=new THREE.Vector2(),_lxc=new THREE.Color();
 /* BADAI: jangkar wajib turun (kapal tidak rusak) & terkait (pemain tidak terseret) */
 const STM={dmg:0,warn:0,far:0};
 function stormStep(dt){STM.warn-=dt;if(WX.ph!=='storm'||WX.k<.25)return;
@@ -2369,7 +2391,6 @@ function weatherStep(dt){
       else{WX.ph='clear';WX.t=rnd(90,150);toast('Badai reda');stormEnd()}}
     if(!DEEP.on)stormStep(dt);petXp(dt)}
   else{WX.ph='clear';WX.t=75;STM.dmg=0}
-  LX.safe(dt);
   const tg=WX.ph==='storm'?1:WX.ph==='cloud'?.25:0;WX.k+=(tg-WX.k)*(1-Math.exp(-dt*.35));if(WX.k<.001)WX.k=0;
   const k=WX.k,ab=!!wx.above;
   HEMI.intensity=.85*(1-(ab?.6:.8)*k);sun.intensity=(QS[Q].sh?.9:.6)*(1-(ab?.85:.95)*k);
@@ -2463,7 +2484,7 @@ function update(dt){
   for(let i=F.length-1;i>=0;i--){const f=F[i];f.life-=dt;f.m.position.addScaledVector(f.v,dt);f.m.rotation.x+=dt;
     f.m.scale.setScalar(Math.max(0,f.life/3));if(f.life<=0){S.remove(f.m);F.splice(i,1)}}
   petStep(dt);decoStep(dt);playerStep(dt,cutting);farmStep(dt);
-  if(state==='cut')cutStep(dt);boatStep(dt);wxStep(dt);splashStep(dt);bubbleStep(dt);envStep();weatherStep(dt);deepStep(dt);
+  if(state==='cut')cutStep(dt);boatStep(dt);wxStep(dt);splashStep(dt);bubbleStep(dt);envStep();weatherStep(dt);deepStep(dt);LX.safe(dt);
   /* tool anim */
   const ang=cutting?.12+.2*Math.abs(Math.sin(t*20)):.28;blades.forEach(b=>b.rotation.y=b.userData.s*ang);
 
@@ -2572,7 +2593,7 @@ function mkAngler(sc){const g=new THREE.Group(),body=M(0x232733),dk=M(0x14161e),
   for(let i=0;i<8;i++){const z=.45+i*.2,x=(i%2?1:-1)*.42*(1-i*.05);const a=mk(tc,tw,x,-.28,z,1,1,1);a.rotation.x=Math.PI;g.add(a);const b=mk(tc,tw,x*.9,.02,z-.35+.35,1,1,1);jaw.add(b);b.position.set(x*.9,-.02,z);b.position.y=-.1}
   for(const s of[-1,1]){g.add(mk(SPH,tw,s*.55,.42,.95,.15,.15,.15));g.add(mk(SPH,dk,s*.6,.43,1.05,.07,.07,.07))}
   const st=new THREE.Group();st.position.set(0,.85,.55);st.rotation.x=1.0;st.add(mk(new THREE.CylinderGeometry(.03,.05,1.9,5),dk,0,.95,0,1,1,1));
-  const bulb=mk(SPH,bl,0,1.95,0,.24,.24,.24);st.add(bulb);
+  const bulb=mk(SPH,bl,0,1.95,0,.24,.24,.24);bulb.layers.enable(6);st.add(bulb);
   const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:DGLOW,color:0xfff2a8,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));gs.scale.set(3.4,3.4,1);gs.position.set(0,1.95,0);st.add(gs);g.add(st);
   const tl=new THREE.Group();tl.position.set(0,0,-1.2);tl.add(mk(SPH,body,0,0,-.7,.12,.9,.9));g.add(tl);
   g.add(mk(SPH,dk,0,.95,-.2,.08,.45,.8));
@@ -2726,9 +2747,9 @@ function dTBuild(j){if(!dMat){dMat=AL.mat(0xffffff,'siltN',{vertexColors:true});
   return{tm,ov}}
 
 /* ===== muat / buang chunk ===== */
-function dLoad(j){const k=dKey(j.cx,j.cz),g=DEEP.g,b=dTBuild(j),c={cx:j.cx,cz:j.cz,k,tm:b.tm,ov:b.ov,kp:[],md:[],ar:[]};g.add(b.tm);if(b.ov)g.add(b.ov);
+function dLoad(j){const k=dKey(j.cx,j.cz),g=DEEP.g,b=dTBuild(j),c={cx:j.cx,cz:j.cz,k,tm:b.tm,ov:b.ov,kp:[],md:[],ar:[]};b.tm.layers.enable(5);g.add(b.tm);if(b.ov)g.add(b.ov);
   const D=dData(j.cx,j.cz);
-  for(const a of D.arc){const m=dArchMesh(a);g.add(m);c.ar.push(m)}
+  for(const a of D.arc){const m=dArchMesh(a);m.traverse(o=>o.layers.enable(5));g.add(m);c.ar.push(m)}
   for(const q of D.klp){const m=withSeed(q.sd,()=>makeKelp(q.x,q.z,5,22,null,DEEP.gh,g));for(const bk of m.strands)bk.hf=Math.min(1,Math.max(.3,(WL-2-bk.y)/(bk.n*bk.L)));kelpStep(m,0,true);DEEP.kp.push(m);c.kp.push(m)}
   for(const q of D.mdw){const m=withSeed(q.sd,()=>makeMeadow(q.x,q.z,7,70,DEEP.gh,g));meadowStep(m,0,true);DEEP.md.push(m);c.md.push(m)}
   DEEP.ch.set(k,c);DEEP.dirty=true}
@@ -2827,6 +2848,7 @@ function dLayers(){const g=DEEP.g,L=DEEP.L={},im=(geo,mat,cap)=>{const m=new THR
   L.vc=im(new THREE.LatheGeometry(pp,14),M(0x2c2e35,{side:THREE.DoubleSide}),DCAP.v);L.vcap=im(cap,new THREE.MeshBasicMaterial({color:0xff7a2a}),DCAP.v);
   L.vglow=pts(DCAP.v,new THREE.PointsMaterial({color:0xff7a2a,size:9,map:DGLOW,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));
   L.bub=pts(DCAP.v*22,new THREE.PointsMaterial({color:0xbff6ff,size:.5,map:DGLOW,transparent:true,opacity:.6,depthWrite:false,blending:THREE.AdditiveBlending}));
+  for(const m of[...L.bld,L.col,...L.peb,...L.cor,L.vc])m.layers.enable(5);L.flo.layers.enable(6);L.vcap.layers.enable(6);/* 5 = penghalus cahaya (kedalaman), 6 = pemancar emisi (bloom) */
   DEEP.vt={v:[],NB:22,pa:L.bub.geometry.attributes.position.array,geo:L.bub.geometry}}
 function dFill(){const L=DEEP.L;if(!L)return;const nb=[0,0,0],np=[0,0,0],no=CV.map(()=>0);let nc=0,nf=0,ng=0,nv=0;const V=DEEP.vt.v;V.length=0;
   const put=(m,i,x,y,z,rx,ry,rz,sx,sy,sz,t)=>{_dm.position.set(x,y,z);_dm.rotation.set(rx,ry,rz);_dm.scale.set(sx,sy,sz);_dm.updateMatrix();m.setMatrixAt(i,_dm.matrix);m.setColorAt(i,_dc.setScalar(t))};
@@ -3161,7 +3183,7 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);de
   if(skyOn){const ul=UL();skyM.visible=!ul;CLD.mesh.visible=true;GHM.visible=ul;GHM.position.copy(cam.position);GHM.material.uniforms.uT.value=t;GHM.material.uniforms.uS.value=WX.k;
     CCAM.fov=cam.fov;CCAM.aspect=cam.aspect;CCAM.updateProjectionMatrix();CCAM.position.copy(cam.position);CCAM.quaternion.copy(cam.quaternion);CCAM.updateMatrixWorld();R.getDrawingBufferSize(SKYB);{const ps=Math.max(3,Math.round(SKYB.y/220)),w=Math.ceil(SKYB.x/ps),h=Math.ceil(SKYB.y/ps);if(SKYRT.width!==w||SKYRT.height!==h)SKYRT.setSize(w,h);
     R.setRenderTarget(SKYRT);R.clear();R.render(CS,CCAM);R.setRenderTarget(null);R.render(BS,VC)}R.clearDepth();S.background=null}
-  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible&&!LX.dead){try{R.render(LX.scene,VC)}catch(e){LX.dead=true;LX.vol.visible=false;console.error('LX pass mati:',e)}}if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
+  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible&&!LX.dead){try{LX.pass2();R.render(LX.scene,VC)}catch(e){LX.dead=true;LX.vol.visible=false;console.error('LX pass mati:',e)}}if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
 meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));meadows.forEach(m=>plantBounds(m,5,m.mh));kelps.forEach(k=>plantBounds(k,9,k.mk));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
 </script>
 <script type="text/plain" data-defer>
