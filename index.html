@@ -2276,7 +2276,9 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   /* pass setengah resolusi: layer 5 (terrain/batu/lengkung) -> hitam + depth texture; layer 6 (pemancar) -> warna emisi, di-depth-test terhadap layer 5 */
   /* penghalus global: semua mesh opaque di S (dunia dangkal, laut dalam, kapal, pemain) otomatis masuk layer 5; scan ulang ~3x/dtk */
   tag(){if(LX.fr-(LX.tg|0)<20&&LX.tg!==undefined)return;LX.tg=LX.fr;
-    S.traverse(o=>{if(!o.isMesh||((o.layers.mask&32)!==0))return;const ms=Array.isArray(o.material)?o.material:[o.material];
+    S.traverse(o=>{if(!o.isMesh||((o.layers.mask&96)!==0)||o===LX.vol)return;
+      /* pemancar kecil (pet, ubur-ubur, angler, ikan) jangan jadi penghalus: cahaya di dalam tubuhnya sendiri akan terhalang. hanya oklusi besar (terrain/batu/kapal) */
+      const g=o.geometry;if(!g)return;if(!g.boundingSphere)g.computeBoundingSphere();if(!g.boundingSphere||g.boundingSphere.radius*(o.isInstancedMesh?1:o.matrixWorld.getMaxScaleOnAxis())<2.5)return;const ms=Array.isArray(o.material)?o.material:[o.material];
       for(const m of ms){if(!m||(m.transparent&&(m.opacity<.9||m.depthWrite===false))||m.depthWrite===false||m.colorWrite===false||m.visible===false||m.blending===THREE.AdditiveBlending)return}o.layers.enable(5)})},
   pass(){const u=LX.u;LX.tag();
     if(!LX.bm)LX.bm=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide,fog:false,skinning:true,morphTargets:true,morphNormals:true});
@@ -2303,7 +2305,7 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   bloom(){const B=LX.bt,n=B.length;let src=LX.rt.texture,sw=LX.rt.width,sh=LX.rt.height;
     LX.bmesh.material=LX.bdm;for(let i=0;i<n;i++){LX.bdm.uniforms.tS.value=src;LX.bdm.uniforms.tx.value.set(1/sw,1/sh);R.setRenderTarget(B[i]);R.render(LX.bq,VC);src=B[i].texture;sw=B[i].width;sh=B[i].height}
     LX.bmesh.material=LX.bum;for(let i=n-2;i>=0;i--){LX.bum.uniforms.tS.value=B[i+1].texture;LX.bum.uniforms.tx.value.set(1/B[i+1].width,1/B[i+1].height);R.setRenderTarget(B[i]);R.render(LX.bq,VC)}},
-  pass2(){try{LX.pass();LX.ef=0}catch(e){LX.dpx=true;LX.ef=(LX.ef|0)+1;if(LX.ef>=3)LX.dead=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e);if(LX.ef===1)try{toast('LX depth error: '+e.message,'sad')}catch(_){}}},
+  pass2(){try{LX.pass();LX.ef=0}catch(e){LX.dpx=true;LX.ef=(LX.ef|0)+1;if(LX.ef>=60)LX.dead=true;if(LX.u){LX.u.uDo.value=0;LX.u.uEg.value=0}console.error('LX depth pass mati:',e);if(LX.ef===1)try{toast('LX depth error: '+e.message,'sad')}catch(_){}}},
   make(){const mk=n=>Array.from({length:n},()=>new THREE.Vector4());LX.vp=mk(LXV);LX.vc=mk(LXV);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
       uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uFP:CU.uFP,uFD:CU.uFD,uFL:CU.uFL,uT:CU.uT,
