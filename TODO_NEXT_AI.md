@@ -70,3 +70,14 @@ Kode: blok `LAUT DALAM v4` di `index.html` (medan `DEEP.fld/gh`, `dData`, `dTBui
 ## Belum dikerjakan
 - [ ] Fauna kerucut shader baru (tangkai bersegmen + kepala bercahaya, menciut saat pemain <9 m). Sekarang masih kerucut MeshBasicMaterial instanced (`L.flo`).
 - [ ] Tali: hitbox titik tengah bisa meleset pada segmen panjang (>1,2 m) saat tali >276 m.
+
+# LIGHT LIBRARY `LX` (wajib) + flora v3
+Blok `/* ===== LIGHT LIBRARY LX` di `index.html` (setelah `fxTick`/`petXp`, menggantikan `rohLights`). GLOBAL: dunia dangkal & laut dalam, kualitas High/Ultra.
+- Cahaya baru = `LX.src(add=>{add(x,y,z,warnaHex,intensitas,ukuranHalo,prioritas,kuatVolumetrik)})`. JANGAN bikin uniform/pass/Points glow baru. Prioritas 1 = juga di Low/Medium (maks 3, hanya cahaya ke permukaan); 0 = hanya High/Ultra.
+- High/Ultra: 8 sumber terdekat menyinari semua material `M()`/`AL` (CU.uRL/uRC/uLN di shader `withCaustics`); 16 terdekat dapat halo volumetric (integral analitik, pass layar `LX.vol`, dirender setelah `RY`), redup halus bila garis kamera->cahaya terhalang medan (`LX.vis`, pakai `DGH`).
+- Senter: berkas kerucut volumetric (raymarch) di pass yang sama, panjang berkas dipotong medan (`LX.bl`). Bentuk kerucut sama dengan sorotan permukaan (`CU.uFL/uFP/uFD`).
+- Sumber bawaan: Roh Laut, kepala flora, cerobong lava, lentera angler, ubur-ubur. Glow statis (`L.glow`, `L.vglow`, sprite angler `gs`) otomatis disembunyikan di High/Ultra.
+- Batas: halo tidak terhalang batu/lengkung (hanya medan); belum ada bayangan dari cahaya titik.
+- Flora = `dFloraMesh` (bunga lampion: tangkai + 5 daun + inti + 6 kelopak, palet `DFC`). Ubah di sana, jangan bikin tumbuhan bercahaya baru.
+## BELUM DIUJI DI BROWSER (hanya `node --check`; Chromium headless sandbox crash)
+- [ ] Console bersih (shader `LX.vol`, flora); FPS Ultra di laut dalam; halo tidak bocor di balik punggungan; senter dangkal terlalu terang/redup (`uDk`).

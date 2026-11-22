@@ -392,7 +392,7 @@ function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/
 addEventListener('resize',resize); resize();
 
 /* water caustics injected into every lit material (shared uniforms, on only in High) */
-const CU={uFL:{value:0},uSt:{value:0},uFP:{value:new THREE.Vector3()},uFD:{value:new THREE.Vector3(0,0,-1)},uT:{value:0},uOn:{value:0},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uRL:{value:[new THREE.Vector4(),new THREE.Vector4(),new THREE.Vector4()]},uRC:{value:[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()]}};
+const CU={uFL:{value:0},uSt:{value:0},uFP:{value:new THREE.Vector3()},uFD:{value:new THREE.Vector3(0,0,-1)},uT:{value:0},uOn:{value:0},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uRL:{value:Array.from({length:8},()=>new THREE.Vector4())},uRC:{value:Array.from({length:8},()=>new THREE.Vector3())},uLN:{value:0}};
 const CAUS=`float caus(vec3 p){vec2 q=(p.xz+uSun.xz/uSun.y*(6.-p.y))*.15;float t=uT*.5+23.;
  vec2 pp=mod(q*6.28318530718,6.28318530718)-250.,i=pp;float c=1.;
  for(int n=0;n<4;n++){float tt=t*(1.-3.5/float(n+1));i=pp+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));
@@ -400,7 +400,7 @@ const CAUS=`float caus(vec3 p){vec2 q=(p.xz+uSun.xz/uSun.y*(6.-p.y))*.15;float t
  c/=4.;c=1.17-pow(c,1.4);return pow(abs(c),8.);}\n`;
 function withCaustics(m){m.onBeforeCompile=s=>{Object.assign(s.uniforms,CU);
   s.vertexShader='varying vec3 vCW;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCW=(modelMatrix*\n#ifdef USE_INSTANCING\ninstanceMatrix*\n#endif\nvec4(transformed,1.0)).xyz;');
-  s.fragmentShader='varying vec3 vCW;uniform float uT,uOn,uFL,uSt;uniform vec3 uSun,uFD,uFP;uniform vec4 uRL[3];uniform vec3 uRC[3];\n'+CAUS+s.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );','vec3 aL=outgoingLight*exp(-vec3(.025,.015,.008)*max(6.-vCW.y,0.));float La=dot(aL,vec3(.3,.59,.11)),fdd=length(vCW-uFP);vec3 fb=aL + diffuseColor.rgb*vec3(.6,.95,1.)*caus(vCW)*uOn*1.1*exp(-(6.-vCW.y)*.05);vec3 rl=vec3(0.);for(int i=0;i<3;i++){float dd=length(vCW-uRL[i].xyz);rl+=uRC[i]*uRL[i].w/(1.+.3*dd*dd);}fb+=diffuseColor.rgb*rl*(1.-.5*smoothstep(.3,1.,La));float fcd=max(dot(normalize(vCW-uFP),uFD),0.);vec3 fl=mix(diffuseColor.rgb,vec3(1.),.35)*vec3(1.,.94,.8)*uFL*(pow(fcd,22.)*.8+pow(fcd,90.)*.9)*(1.5*(1.+2.*uSt)/(1.+(.14-.08*uSt)*fdd*fdd))*(1.-.55*smoothstep(.25,.95,La));gl_FragColor = vec4( fb+fl*(1.-clamp(fb,0.,1.)), diffuseColor.a );')};return m}
+  s.fragmentShader='varying vec3 vCW;uniform float uT,uOn,uFL,uSt;uniform vec3 uSun,uFD,uFP;uniform vec4 uRL[8];uniform vec3 uRC[8];uniform float uLN;\n'+CAUS+s.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );','vec3 aL=outgoingLight*exp(-vec3(.025,.015,.008)*max(6.-vCW.y,0.));float La=dot(aL,vec3(.3,.59,.11)),fdd=length(vCW-uFP);vec3 fb=aL + diffuseColor.rgb*vec3(.6,.95,1.)*caus(vCW)*uOn*1.1*exp(-(6.-vCW.y)*.05);vec3 rl=vec3(0.);for(int i=0;i<8;i++){if(float(i)>=uLN)break;float dd=length(vCW-uRL[i].xyz);rl+=uRC[i]*uRL[i].w/(1.+.3*dd*dd);}fb+=diffuseColor.rgb*rl*(1.-.5*smoothstep(.3,1.,La));float fcd=max(dot(normalize(vCW-uFP),uFD),0.);vec3 fl=mix(diffuseColor.rgb,vec3(1.),.35)*vec3(1.,.94,.8)*uFL*(pow(fcd,22.)*.8+pow(fcd,90.)*.9)*(1.5*(1.+2.*uSt)/(1.+(.14-.08*uSt)*fdd*fdd))*(1.-.55*smoothstep(.25,.95,La));gl_FragColor = vec4( fb+fl*(1.-clamp(fb,0.,1.)), diffuseColor.a );')};return m}
 let PREVM=false;
 const M=(c,o)=>{const m=new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));return PREVM?m:withCaustics(m)};
 const SPH=new THREE.SphereGeometry(1,16,12),BOX=new THREE.BoxGeometry(1,1,1),CONE=new THREE.ConeGeometry(1,1,10),
@@ -2252,10 +2252,84 @@ function fxTick(dt){fxT-=dt;if(fxT>0)return;fxT=.4;
   if(mnS+mnP>0)L.push('<div class="m">Uang +'+(mnS+mnP)+'%'+(mnS>0&&mnP>0?'<small>skill '+mnS+'% · pet '+mnP+'%</small>':'')+'</div>');
   const h=L.join('');if(h!==fxS){fxS=h;fxEl.innerHTML=h;fxEl.hidden=!h}}
 function petXp(dt){const n=petBuf().xp;if(!n){PXT.t=0;return}PXT.t+=dt;if(PXT.t>=5){PXT.t-=5;toast('+'+n+' XP pet','xp');addXP(n)}}
-function rohLights(){let n=0;const tm=performance.now()*.001;
-  for(const o of PETS){if(o.k!=='roh'||n>=3)continue;const P=o.g.position;_pc.setHex(PETD.roh.c[o.v]);
-    CU.uRL.value[n].set(P.x,P.y+.3,P.z,2.1*(1+.18*Math.sin(tm*3+o.ph)));CU.uRC.value[n].set(_pc.r,_pc.g,_pc.b);n++}
-  for(;n<3;n++)CU.uRL.value[n].w=0}
+/* ===== LIGHT LIBRARY LX (WAJIB: semua cahaya dinamis + volumetric lewat sini; GLOBAL untuk dunia dangkal DAN laut dalam; jangan bikin pass/uniform cahaya baru) =====
+   Sumber titik: LX.src(fn) -> fn(add) dipanggil tiap frame; add(x,y,z,warnaHex,intensitas,ukuranHalo,prioritas,kuatVolumetrik).
+     prioritas 1 = selalu ada (Low/Medium: maks 3, hanya cahaya ke permukaan seperti dulu); 0 = hanya High/Ultra.
+   High/Ultra: (a) 8 sumber terdekat menyinari SEMUA material M()/AL (CU.uRL/uRC, dipakai shader withCaustics),
+     (b) 16 sumber terdekat dapat halo volumetric (integral analitik di pass layar LX.vol), redup halus bila terhalang medan (LX.vis).
+   Senter: berkas kerucut volumetric (raymarch) di pass yang sama; panjang berkas dipotong medan (LX.bl). Aktif di mana pun (dangkal & dalam).
+   Glow statis (Points/Sprite) hanya untuk Low/Medium; di High/Ultra glow = sumber LX. Cahaya baru = tambah LX.src, JANGAN sentuh shader/pass. */
+const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map(),bl:30,fr:0,rgbC:new Map(),vp:null,vc:null,
+  src(fn){LX.srcs.push(fn)},
+  rgb(h){let c=LX.rgbC.get(h);if(!c){c=[(h>>16&255)/255,(h>>8&255)/255,(h&255)/255];LX.rgbC.set(h,c)}return c},
+  add(x,y,z,hex,i,a,pri,vs){const dx=x-cam.position.x,dy=y-cam.position.y,dz=z-cam.position.z,d2=dx*dx+dy*dy+dz*dz;if(d2>1764)return;
+    let o=LX.pool[LX.n];if(!o)o=LX.pool[LX.n]={};LX.n++;o.x=x;o.y=y;o.z=z;o.c=LX.rgb(hex);o.i=i;o.a=a;o.pri=pri;o.vs=vs==null?1:vs;o.d=Math.sqrt(d2)},
+  /* 1 bila garis kamera->cahaya bebas medan, 0 bila terhalang */
+  vis(x,y,z){const cx=cam.position.x,cy=cam.position.y,cz=cam.position.z;
+    for(let i=1;i<=8;i++){const t=i/10,px=cx+(x-cx)*t,py=cy+(y-cy)*t,pz=cz+(z-cz)*t;if(py<DGH(px,pz)+.1)return 0}return 1},
+  make(){const mk=n=>Array.from({length:n},()=>new THREE.Vector4());LX.vp=mk(LXV);LX.vc=mk(LXV);
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
+      uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uFP:CU.uFP,uFD:CU.uFD,uFL:CU.uFL,uT:CU.uT,
+        uBL:{value:30},uFg:{value:.03},uDk:{value:1},uN:{value:0},uVP:{value:LX.vp},uVC:{value:LX.vc}},
+      vertexShader:'varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
+      fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uFP,uFD;uniform float uT,uFL,uBL,uFg,uDk,uN;uniform vec4 uVP[16],uVC[16];
+float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);vec2 q=i.xy+i.z*37.,r=i.xy+(i.z+1.)*37.;
+  return mix(mix(mix(h(q),h(q+vec2(1.,0.)),f.x),mix(h(q+vec2(0.,1.)),h(q+vec2(1.)),f.x),f.y),mix(mix(h(r),h(r+vec2(1.,0.)),f.x),mix(h(r+vec2(0.,1.)),h(r+vec2(1.)),f.x),f.y),f.z);}
+void main(){
+  vec4 v=uInv*vec4(vUv*2.-1.,1.,1.);v.xyz/=v.w;
+  vec3 d=normalize((uCam*vec4(v.xyz,0.)).xyz);
+  vec3 col=vec3(0.);
+  /* halo titik: integral analitik 1/(1+r^2/a^2) sepanjang sinar kamera, dilemahkan kabut air */
+  for(int i=0;i<16;i++){if(float(i)>=uN)break;
+    vec3 L=uVP[i].xyz-uPos;float t0=dot(L,d),dl=length(L),h2=max(dot(L,L)-t0*t0,0.),a=uVP[i].w,c=sqrt(a*a+h2);
+    float I=a*a/c*(atan((60.-t0)/c)-atan(-t0/c));
+    col+=uVC[i].rgb*uVC[i].w*I*exp(-pow(dl*uFg,2.))*(1.-smoothstep(a*2.,a*10.,sqrt(h2)));}
+  /* senter: raymarch kerucut (bentuk sama dengan sorotan di permukaan), berakhir di bidang tempat berkas menabrak medan */
+  if(uFL>.01){
+    float fd=dot(d,uFD),tb=40.;if(fd>.02)tb=clamp(dot(uFP+uFD*uBL-uPos,uFD)/fd,0.,40.);
+    const int N=22;float dt=tb/float(N),j=h(vUv*vec2(1731.,911.)+uT),acc=0.;
+    for(int i=0;i<N;i++){float s=(float(i)+j)*dt;vec3 p=uPos+d*s,w=p-uFP;float r=length(w)+.001,ca=max(dot(w/r,uFD),0.);
+      float cone=pow(ca,22.)*.8+pow(ca,90.)*.9,at=1./(1.+.14*r*r),nz=.7+.6*n3(p*.9+vec3(0.,uT*.15,uT*.1));
+      acc+=cone*at*nz*exp(-s*.04)*dt;}
+    col+=vec3(1.,.94,.8)*acc*uFL*.55;}
+  col*=uDk;
+  gl_FragColor=vec4(1.-exp(-col*1.1),1.);
+}`}));
+    m.frustumCulled=false;m.visible=false;LX.scene=new THREE.Scene();LX.scene.add(m);LX.vol=m;LX.u=m.material.uniforms},
+  update(dt){
+    const hq=HQ(),cp=cam.position,sm=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
+    LX.n=0;LX.fr++;for(const f of LX.srcs)f(LX.add);
+    const P=LX.pool,L=[];for(let k=0;k<LX.n;k++){const o=P[k];if(hq||o.pri>0)L.push(o)}
+    L.sort((a,b)=>(a.d-a.pri*6)-(b.d-b.pri*6));
+    const m1=Math.min(hq?LXN:3,L.length),m2=hq?Math.min(LXV,L.length):0,U=CU.uRL.value,V=CU.uRC.value;
+    for(let k=0;k<Math.max(m1,m2);k++){const o=L[k];
+      if(k<m1){const f=hq?1-sm(18,28,o.d):1;U[k].set(o.x,o.y,o.z,o.i*f);V[k].set(o.c[0],o.c[1],o.c[2])}
+      if(k<m2){const key=(Math.round(o.x*8)*73856093^Math.round(o.y*8)*19349663^Math.round(o.z*8)*83492791)|0;let e=LX.vm.get(key);
+        const tg=LX.vis(o.x,o.y,o.z);if(!e)e=LX.vm.set(key,{v:tg,f:0}).get(key);e.v+=(tg-e.v)*(1-Math.exp(-dt*9));e.f=LX.fr;
+        const f=(1-sm(30,42,o.d))*e.v*o.vs;LX.vp[k].set(o.x,o.y,o.z,o.a);LX.vc[k].set(o.c[0]*o.i*.22,o.c[1]*o.i*.22,o.c[2]*o.i*.22,f)}}
+    CU.uLN.value=m1;
+    if(LX.fr%120===0)for(const[k,e]of LX.vm)if(LX.fr-e.f>60)LX.vm.delete(k);
+    /* glow statis hanya Low/Medium; High/Ultra memakai sumber LX */
+    if(DEEP.L){DEEP.L.glow.visible=!hq;DEEP.L.vglow.visible=!hq}
+    const beam=FLON.v>.01&&state==='play',under=cp.y<surfY(cp.x,cp.z)-.05;
+    if(hq&&!LX.vol)LX.make();
+    if(!LX.vol)return;
+    const on=hq&&under&&(m2>0||beam);LX.vol.visible=on;if(!on)return;
+    if(beam){const F=CU.uFD.value,B=CU.uFP.value,top=surfY(B.x,B.z);let Lb=40;
+      for(let s=1.5;s<=40;s+=1.5){const x=B.x+F.x*s,y=B.y+F.y*s,z=B.z+F.z*s;if(y<DGH(x,z)+.15||y>top){Lb=s;break}}
+      LX.bl+=(Lb-LX.bl)*(1-Math.exp(-dt*9))}
+    const u=LX.u;u.uN.value=m2;u.uBL.value=LX.bl;u.uFg.value=S.fog.density;u.uDk.value=.35+.65*Math.min(1,Math.max(0,(WL-cp.y)/45))}};
+/* sumber bawaan: Roh Laut (pet), flora bioluminesen, cerobong lava, lentera angler, ubur-ubur */
+LX.src(add=>{const tm=performance.now()*.001;for(const o of PETS){if(o.k!=='roh')continue;const P=o.g.position;add(P.x,P.y+.3,P.z,PETD.roh.c[o.v],2.1*(1+.18*Math.sin(tm*3+o.ph)),.8,1,1.2)}});
+LX.src(add=>{if(!DEEP.on||!DEEP.built||!HQ())return;const cx=cam.position.x,cz=cam.position.z;
+  for(const c of DEEP.ch.values()){const D=DEEP.dat.get(c.k);if(!D)continue;
+    for(const q of D.flo){const dx=q.x-cx,dz=q.z-cz;if(dx*dx+dz*dz>1764)continue;add(q.x,q.y+q.hh*.92,q.z,DFC[q.c],.9+3.2*q.w1+(q.g?.4:0),.45+2.4*q.w1,0,1)}}});
+LX.src(add=>{if(!DEEP.on||!DEEP.vt||!HQ())return;const pu=DEEP.gP.value;for(const q of DEEP.vt.v)add(q.x,q.y+q.h+.5,q.z,0xff7a2a,3.4*pu,1.7,0,1.5)});
+LX.src(add=>{const hq=HQ();if(!DEEP.on)return;const T=dClock();
+  for(const o of DEEP.ang){const u=o.g.userData;if(!u||!u.gs)continue;u.gs.visible=!hq;if(!hq||!o.on)continue;u.gs.getWorldPosition(_lxv);add(_lxv.x,_lxv.y,_lxv.z,0xffeeaa,2.4*(1+.12*Math.sin(T*3.1+o.ph)),.8,0,1.3)}
+  if(hq)for(const j of DEEP.jel){if(!j.on)continue;const p=j.g.position;add(p.x,p.y,p.z,0x7fd8ff,1.3,.9,0,.9)}});
+const _lxv=new THREE.Vector3();
 /* BADAI: jangkar wajib turun (kapal tidak rusak) & terkait (pemain tidak terseret) */
 const STM={dmg:0,warn:0,far:0};
 function stormStep(dt){STM.warn-=dt;if(WX.ph!=='storm'||WX.k<.25)return;
@@ -2288,7 +2362,7 @@ function weatherStep(dt){
       else{WX.ph='clear';WX.t=rnd(90,150);toast('Badai reda');stormEnd()}}
     if(!DEEP.on)stormStep(dt);petXp(dt)}
   else{WX.ph='clear';WX.t=75;STM.dmg=0}
-  rohLights();
+  LX.update(dt);
   const tg=WX.ph==='storm'?1:WX.ph==='cloud'?.25:0;WX.k+=(tg-WX.k)*(1-Math.exp(-dt*.35));if(WX.k<.001)WX.k=0;
   const k=WX.k,ab=!!wx.above;
   HEMI.intensity=.85*(1-(ab?.6:.8)*k);sun.intensity=(QS[Q].sh?.9:.6)*(1-(ab?.85:.95)*k);
@@ -2558,7 +2632,7 @@ function dFree(D){for(const c of D.cols){const o=c[0];for(let a=c[1];a<=c[2];a++
   for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const n=DEEP.dat.get(dKey(D.cx+a,D.cz+b));if(n)n.nb=false}}
 function dEvict(pcx,pcz){const L=[];for(const D of DEEP.dat.values()){const d=Math.hypot(D.cx-pcx,D.cz-pcz);if(d>DCV+2.4)L.push([d,D])}
   L.sort((a,b)=>b[0]-a[0]);for(let i=0;i<L.length&&DEEP.dat.size>380;i++)dFree(L[i][1])}
-const DFC=[0x36f2d4,0x4fe3ff,0x36f2d4,0x4fe3ff,0x9b6bff,0xffb04a];
+const DFC=[0x36f2d4,0x4fe3ff,0x6f9bff,0xff6fd2,0x9b6bff,0xffb04a];
 function dGen(D){
   const cx=D.cx,cz=D.cz,x0=cx*DCS,z0=cz*DCS,r=mulberry32((dHash(cx,cz,901)*4294967296)>>>0),ru=(a,b)=>a+(b-a)*r(),fo={h:0,lv:0,rim:0},
     bd=(x,z)=>Math.hypot(x-BOAT.x,z-BOAT.z),
@@ -2673,40 +2747,63 @@ function deepStream(dt,force){
 
 /* ===== LAYER INSTANCED GLOBAL (draw call tetap kecil): diisi ulang dari data chunk yang termuat saat DEEP.dirty ===== */
 const DCAP={b:900,c:2400,p:1000,o:200,f:2400,gl:700,v:160};
-/* flora bioluminesen v2: tangkai bersegmen melengkung + kepala manik bercahaya. ShaderMaterial instanced: goyang & cahaya merambat di vertex/fragment shader,
-   menciut + terang saat pemain <9 m, alpha = 1-kabut (pola sama dengan ubur-ubur). Skala instance: x=lebar/ukuran kepala, y=tinggi. */
-function dFloraMesh(cap){const S=7,K=6,P=[],H=[],KK=[],D=[],ix=[];
-  for(let i=0;i<S;i++){const y=i/(S-1);for(let k=0;k<K;k++){const a=k/K*6.2832;P.push(Math.cos(a)*(1-.82*y),y,Math.sin(a)*(1-.82*y));H.push(y);KK.push(0);D.push(0,0,0)}}
+/* flora bioluminesen v3 ("bunga lampion laut"): tangkai melengkung + 5 daun + inti bulat berwarna + 6 kelopak terbuka. Satu ShaderMaterial instanced (goyang, kelopak menguncup & menciut saat pemain <9 m,
+   gradasi pangkal gelap -> ujung terang, alpha = 1-kabut). Skala instance: x=ukuran kepala/lebar, y=tinggi. Warna = palet DFC. Cahaya sekitar & halo volumetric BUKAN di sini: dari LX.src flora (lihat LIGHT LIBRARY). Jangan bikin tumbuhan bercahaya baru; pakai/ubah ini. */
+function dFloraMesh(cap){const S=7,K=6,P=[],H=[],KK=[],D=[],UV=[],ix=[];
+  const vtx=(px,py,pz,h,k,dx,dy,dz,u,v)=>{P.push(px,py,pz);H.push(h);KK.push(k);D.push(dx,dy,dz);UV.push(u,v)};
+  /* tangkai bulat meruncing */
+  for(let i=0;i<S;i++){const y=i/(S-1),r=1-.78*y;for(let k=0;k<K;k++){const a=k/K*6.2832;vtx(Math.cos(a)*r,y,Math.sin(a)*r,y,0,0,0,0,y,0)}}
   for(let i=0;i<S-1;i++)for(let k=0;k<K;k++){const a=i*K+k,b=i*K+(k+1)%K,c=a+K,d=b+K;ix.push(a,c,b,b,c,d)}
-  const ig=new THREE.IcosahedronGeometry(1,1),ip=ig.attributes.position,base=P.length/3;
-  for(let i=0;i<ip.count;i++){P.push(0,1,0);H.push(1);KK.push(1);D.push(ip.getX(i),ip.getY(i),ip.getZ(i))}
-  const hi=ig.index?Array.from(ig.index.array):[...Array(ip.count).keys()];for(const v of hi)ix.push(base+v);
+  /* strip 3 kolom (v=-1,0,1) x rows baris (u=0..1), menempel di tangkai pada tinggi y0; fn(u,v) -> offset [x,y,z] dalam satuan ukuran kepala */
+  const strip=(y0,k,rows,fn)=>{const base=P.length/3;
+    for(let r=0;r<rows;r++){const u=r/(rows-1);for(let c=0;c<3;c++){const o=fn(u,c-1);vtx(0,y0,0,y0,k,o[0],o[1],o[2],u,c-1)}}
+    for(let r=0;r<rows-1;r++)for(let c=0;c<2;c++){const a=base+r*3+c,b=a+1,e=a+3,f=e+1;ix.push(a,e,b,b,e,f)}};
+  /* daun: 5 helai melengkung keluar-turun di sepanjang tangkai (k=3) */
+  [.18,.3,.42,.55,.66].forEach((y0,j)=>{const ph=j*2.4,ca=Math.cos(ph),sa=Math.sin(ph);
+    strip(y0,3,5,(u,v)=>{const rr=2.6*Math.pow(u,.9),yy=1.3*u-1.7*u*u+.05,w=.38*Math.sin(Math.PI*u)*(1-.3*u)*v;return[ca*rr-sa*w,yy,sa*rr+ca*w]})});
+  /* kepala: inti bulat (k=1) + 6 kelopak terbuka seperti bunga lampion (k=2) */
+  const ig=new THREE.IcosahedronGeometry(.55,1),ip=ig.attributes.position,bb=P.length/3;
+  for(let i=0;i<ip.count;i++)vtx(0,1,0,1,1,ip.getX(i),ip.getY(i),ip.getZ(i),0,0);
+  for(const v of(ig.index?Array.from(ig.index.array):[...Array(ip.count).keys()]))ix.push(bb+v);
+  for(let j=0;j<6;j++){const ph=j/6*6.2832+.3,ca=Math.cos(ph),sa=Math.sin(ph);
+    strip(1,2,5,(u,v)=>{const rr=.35+1.45*Math.pow(u,1.5),yy=.2+1.6*u-1.5*u*u+.14*(1-v*v)*Math.sin(Math.PI*u),w=(.1+.55*Math.sin(Math.PI*u)*(1-.25*u))*v;return[ca*rr-sa*w,yy,sa*rr+ca*w]})}
   const g=new THREE.BufferGeometry();g.index=new THREE.BufferAttribute(new Uint16Array(ix),1);
-  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('aH',new THREE.Float32BufferAttribute(H,1));g.setAttribute('aK',new THREE.Float32BufferAttribute(KK,1));g.setAttribute('aD',new THREE.Float32BufferAttribute(D,3));
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('aH',new THREE.Float32BufferAttribute(H,1));g.setAttribute('aK',new THREE.Float32BufferAttribute(KK,1));
+  g.setAttribute('aD',new THREE.Float32BufferAttribute(D,3));g.setAttribute('aU',new THREE.Float32BufferAttribute(UV,2));
   g.setAttribute('aCol',new THREE.InstancedBufferAttribute(new Float32Array(cap*3),3).setUsage(THREE.DynamicDrawUsage));g.setAttribute('aPh',new THREE.InstancedBufferAttribute(new Float32Array(cap),1).setUsage(THREE.DynamicDrawUsage));
   DEEP.fU={uT:{value:0},uP:{value:new THREE.Vector3()}};
   const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:true,side:THREE.DoubleSide,
     uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uT:{value:0},uP:{value:new THREE.Vector3()}}]),
     vertexShader:`#include <fog_pars_vertex>
-attribute float aH;attribute float aK;attribute vec3 aD;attribute vec3 aCol;attribute float aPh;uniform float uT;uniform vec3 uP;varying vec3 vC;varying float vH;varying float vK;varying float vN;
+attribute float aH;attribute float aK;attribute vec3 aD;attribute vec2 aU;attribute vec3 aCol;attribute float aPh;uniform float uT;uniform vec3 uP;
+varying vec3 vC;varying float vH;varying float vK;varying float vN;varying float vNz;varying vec2 vU;
 void main(){mat4 M=modelMatrix*instanceMatrix;vec3 b=(M*vec4(0.,0.,0.,1.)).xyz;float sz=length(instanceMatrix[0].xyz);
   vec4 w=M*vec4(position,1.);float h=aH;float k=smoothstep(4.,9.,distance(b,uP));
-  w.xyz+=aK*aD*sz*1.5;
+  vec3 od=aD;
+  if(aK>1.5&&aK<2.5){od.xz*=mix(.4,1.,k)*(1.+.1*sin(uT*1.1+aPh*6.28));od.y*=mix(1.25,1.,k);}
+  else if(aK>2.5){od.y+=sin(uT*1.5+aPh*6.28+aU.x*2.)*.2*aU.x;}
+  w.xyz+=step(.5,aK)*od*sz*1.5;
   float sw=sin(uT*1.2+aPh*6.28+h*2.2)*.22+sin(uT*.7+aPh*17.)*.12;vec2 dr=vec2(cos(aPh*6.28),sin(aPh*6.28));
   w.x+=(dr.x*.5+sw)*h*h*(.6+sz*2.);w.z+=(dr.y*.5+sw*.8)*h*h*(.6+sz*2.);
   w.y=b.y+(w.y-b.y)*mix(.4,1.,k);
-  vC=aCol;vH=h;vK=aK;vN=mix(1.7,1.,k);vec4 mv=viewMatrix*w;gl_Position=projectionMatrix*mv;
+  vC=aCol;vH=h;vK=aK;vU=aU;vN=mix(1.45,1.,k);vNz=(aK>.5&&aK<1.5)?normalize(mat3(viewMatrix)*aD).z:0.;
+  vec4 mv=viewMatrix*w;gl_Position=projectionMatrix*mv;
 #ifdef USE_FOG
 fogDepth=-mv.z;
 #endif
 }`,
-    fragmentShader:`uniform float uT;varying vec3 vC;varying float vH;varying float vK;varying float vN;
+    fragmentShader:`uniform float uT;varying vec3 vC;varying float vH;varying float vK;varying float vN;varying float vNz;varying vec2 vU;
 #include <fog_pars_fragment>
-void main(){float pl=.6+.4*sin(vH*9.-uT*2.2);float g=mix(.35+.55*vH*vH,2.1,vK)*pl*vN;vec3 c=vC*g+vec3(.35)*vK;float ff=0.;
+void main(){float pl=.6+.4*sin(vH*9.-uT*2.2);vec3 c;float a;
+  if(vK<.5){c=vC*(.10+.75*vH*vH)*pl;a=.5;}
+  else if(vK<1.5){float f=clamp(vNz,0.,1.);c=vC*(1.1+.5*f)*(.85+.15*sin(uT*2.+vH*3.))+vec3(.55,.5,.45)*pow(f,3.)*.45;a=.9;}
+  else if(vK<2.5){float e=1.-pow(abs(vU.y),2.5);c=vC*(.3+1.1*pow(vU.x,1.4))*(.75+.25*pl);a=(.2+.5*vU.x)*e;}
+  else{float e=1.-pow(abs(vU.y),2.5);c=vC*(.15+.5*vU.x)*pl*.8;a=.4*e;}
+  c*=vN;float ff=0.;
 #ifdef USE_FOG
 ff=1.-exp(-fogDensity*fogDensity*fogDepth*fogDepth);
 #endif
-gl_FragColor=vec4(c,(.55+.45*vK)*(1.-ff));}`});
+gl_FragColor=vec4(c,a*(1.-ff));}`});
   m.uniforms.uT=DEEP.fU.uT;m.uniforms.uP=DEEP.fU.uP;
   const o=new THREE.InstancedMesh(g,m,cap);o.count=0;o.frustumCulled=false;DEEP.g.add(o);return o}
 function dLayers(){const g=DEEP.g,L=DEEP.L={},im=(geo,mat,cap)=>{const m=new THREE.InstancedMesh(geo,mat,cap);m.setColorAt(0,_dc.setScalar(1));m.count=0;m.frustumCulled=false;g.add(m);return m};
@@ -3057,7 +3154,7 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);de
   if(skyOn){const ul=UL();skyM.visible=!ul;CLD.mesh.visible=true;GHM.visible=ul;GHM.position.copy(cam.position);GHM.material.uniforms.uT.value=t;GHM.material.uniforms.uS.value=WX.k;
     CCAM.fov=cam.fov;CCAM.aspect=cam.aspect;CCAM.updateProjectionMatrix();CCAM.position.copy(cam.position);CCAM.quaternion.copy(cam.quaternion);CCAM.updateMatrixWorld();R.getDrawingBufferSize(SKYB);{const ps=Math.max(3,Math.round(SKYB.y/220)),w=Math.ceil(SKYB.x/ps),h=Math.ceil(SKYB.y/ps);if(SKYRT.width!==w||SKYRT.height!==h)SKYRT.setSize(w,h);
     R.setRenderTarget(SKYRT);R.clear();R.render(CS,CCAM);R.setRenderTarget(null);R.render(BS,VC)}R.clearDepth();S.background=null}
-  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
+  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();R.render(S,cam);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible)R.render(LX.scene,VC);if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
 meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));meadows.forEach(m=>plantBounds(m,5,m.mh));kelps.forEach(k=>plantBounds(k,9,k.mk));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
 </script>
 <script type="text/plain" data-defer>
