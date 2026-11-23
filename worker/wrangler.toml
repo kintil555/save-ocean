@@ -7,6 +7,8 @@ compatibility_date = "2025-04-01"
 SB_URL = "https://adlillxbmnbyfvdivxum.supabase.co"
 SB_KEY = "sb_publishable_RRjD1S6FYu3UrD5AvzysKA_VpH6jcPB"
 ALLOWED_ORIGIN = "https://save-ocean.pages.dev"
+# Panjang 1 hari-malam game (detik, waktu nyata). Cuaca & siang-malam global dari jam server.
+DAY_LEN = "600"
 
 [[durable_objects.bindings]]
 name = "ROOM"

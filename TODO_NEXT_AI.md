@@ -112,3 +112,9 @@ Blok `/* ===== LIGHT LIBRARY LX` di `index.html` (setelah `fxTick`/`petXp`, meng
 - Diuji headless Chromium (SwiftShader) lewat harness: shader terkompilasi tanpa error, piksel di balik tiang gelap saat shadow ON, halo berkurang ~20%. BELUM diuji di game penuh: FPS di HP, acne/peter-panning pada medan curam, bias (`.28+.045*dl` m di `shAt`, `.3+.03*dl` di `shv`).
 - Belum: shadow untuk lampu ke-2 dst, objek dinamis (hewan) sebagai penghalang, blur shadow di halo.
 
+
+## Cuaca & siang-malam GLOBAL (server)
+- Worker `GET /world` (tanpa auth, tanpa storage): `{now,day,len,sch}` murni fungsi jam server. Cuaca: siklus 240 dtk (cerah 110-150 -> mendung 40 -> badai sisa), hash per siklus. `day` = (detik/`DAY_LEN`)%1, `DAY_LEN` di `wrangler.toml` (600). Semua pemain (solo/host/tamu) melihat hal sama; host tidak lagi mengirim cuaca (`env.ph` dihapus dari DO).
+- Klien: `worldSync()` (blok ONLINE) tiap 45 dtk -> `WORLD`; `wxPlan()` = timeline cuaca, `dayStep()` = matahari/bulan + warna. Server tak terjangkau -> fallback siklus lokal + hari dari jam lokal. Ubah durasi cuaca/hari = ubah di `worker/index.js` saja.
+- Siang-malam: `DN.sv` = matahari asli (langit), `SUNV` = cahaya dominan (matahari/bulan, y>=.2) dipakai caustics/volumetrik/air/bayangan. Shader langit/awan/air memakai chunk `DNC` (`dnSky`: gradien malam, senja, bintang, bulan) + uniform `uDay/uTw`. Awan voxel (`makeClouds`) ikut: biru gelap malam, oranye senja, cahaya bulan. Efek langit baru = edit `dnSky`, jangan bikin pass baru.
+- Diuji headless Chrome (SwiftShader) Ultra: siang/senja/malam/badai, atas & bawah air, tanpa error shader. Belum diuji: FPS HP, 2 akun lintas hari, deploy Worker (`/world` baru ada setelah deploy).

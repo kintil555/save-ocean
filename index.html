@@ -389,11 +389,17 @@ const S=new THREE.Scene(); S.background=new THREE.Color(0x1aa3c9); S.fog=new THR
 const cam=new THREE.PerspectiveCamera(70,1,.1,130); cam.rotation.order='YXZ'; S.add(cam);
 const HEMI=new THREE.HemisphereLight(0xcaf6ff,0x1b5e7a,.85);S.add(HEMI);
 const sun=new THREE.DirectionalLight(0xffffff,.6); sun.position.set(10,30,5); S.add(sun);
+/* SIANG-MALAM + CUACA GLOBAL: fase dari server (/world, fungsi jam server), fallback jam lokal. DN.sv = arah matahari asli (langit),
+   SUNV = arah cahaya dominan (matahari siang / bulan malam, y>=.2) untuk caustics, sinar volumetrik, air, bayangan. */
+const SUNV=new THREE.Vector3(10,30,5).normalize();
+const DN={p:.5,d:1,tw:0,el:1,dim:0,sv:new THREE.Vector3(0,1,.25).normalize(),uD:{value:1},uTw:{value:0},
+  cu:new THREE.Color(0x1aa3c9),ca:new THREE.Color(0xc7e6fa),su:new THREE.Color(0x04222d),sa:new THREE.Color(0x4a535c)};
+const WORLD={ok:false,at:0,day:0,len:600,sch:null,k0:false};
 function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
 addEventListener('resize',resize); resize();
 
 /* water caustics injected into every lit material (shared uniforms, on only in High) */
-const CU={uFL:{value:0},uSt:{value:0},uFP:{value:new THREE.Vector3()},uFD:{value:new THREE.Vector3(0,0,-1)},uT:{value:0},uOn:{value:0},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uRL:{value:Array.from({length:8},()=>new THREE.Vector4())},uRC:{value:Array.from({length:8},()=>new THREE.Vector3())},uLN:{value:0},uShC:{value:null},uShP:{value:new THREE.Vector4(0,0,0,40)},uShOn:{value:0}};
+const CU={uFL:{value:0},uSt:{value:0},uFP:{value:new THREE.Vector3()},uFD:{value:new THREE.Vector3(0,0,-1)},uT:{value:0},uOn:{value:0},uSun:{value:SUNV},uRL:{value:Array.from({length:8},()=>new THREE.Vector4())},uRC:{value:Array.from({length:8},()=>new THREE.Vector3())},uLN:{value:0},uShC:{value:null},uShP:{value:new THREE.Vector4(0,0,0,40)},uShOn:{value:0}};
 const CAUS=`float caus(vec3 p){vec2 q=(p.xz+uSun.xz/uSun.y*(6.-p.y))*.15;float t=uT*.5+23.;
  vec2 pp=mod(q*6.28318530718,6.28318530718)-250.,i=pp;float c=1.;
  for(int n=0;n<4;n++){float tt=t*(1.-3.5/float(n+1));i=pp+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));
@@ -1091,7 +1097,7 @@ const AL={list:[],
 const VS=new THREE.Scene(),VC=new THREE.OrthographicCamera(-1,1,1,-1,0,1);R.autoClear=false;
 function makeVol(){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
-    uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uTime:{value:0},uSt:{value:0},uAb:{value:0},uDT:{value:null},uDo:{value:0}},
+    uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uSun:{value:SUNV},uTime:{value:0},uSt:{value:0},uAb:{value:0},uDT:{value:null},uDo:{value:0}},
     vertexShader:'varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
     fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uSun;uniform float uTime,uSt,uAb,uDo;uniform sampler2D uDT;
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -1119,14 +1125,14 @@ void main(){
 /* realistic water surface seen from below: animated wave normals, Snell refraction, total internal reflection, Fresnel, sun glare */
 let SW=null;const SB=surf.material;
 function makeWater(){return new THREE.ShaderMaterial({side:THREE.DoubleSide,transparent:true,depthWrite:false,
-  uniforms:{uTime:{value:0},uN:{value:4},uHi:{value:0},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uFog:{value:new THREE.Color(0x1aa3c9)},uFogA:{value:new THREE.Color(0xc7e6fa)},uRip:{value:wxT},uRC:{value:new THREE.Vector2()},uStorm:{value:0},uGh:{value:0},uRFon:{value:0},uRF:{value:null},uTM:{value:new THREE.Matrix4()}},
+  uniforms:{uTime:{value:0},uN:{value:4},uHi:{value:0},uDay:DN.uD,uTw:DN.uTw,uSunT:{value:DN.sv},uSun:{value:SUNV},uFog:{value:new THREE.Color(0x1aa3c9)},uFogA:{value:new THREE.Color(0xc7e6fa)},uRip:{value:wxT},uRC:{value:new THREE.Vector2()},uStorm:{value:0},uGh:{value:0},uRFon:{value:0},uRF:{value:null},uTM:{value:new THREE.Matrix4()}},
   vertexShader:WXV,fragmentShader:WXF})}
 /* sun shadows: shadow box follows the player */
 R.shadowMap.enabled=true;R.shadowMap.autoUpdate=false;R.shadowMap.needsUpdate=true;R.shadowMap.type=THREE.PCFSoftShadowMap;S.add(sun.target);
 Object.assign(sun.shadow.camera,{left:-32,right:32,top:32,bottom:-32,near:1,far:120});sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias=-.0006;sun.shadow.normalBias=.05;floor.receiveShadow=true;
 function followSun(){if(!sun.castShadow)return;cam.getWorldDirection(fw);const x=Math.round(cam.position.x+fw.x*14),z=Math.round(cam.position.z+fw.z*14);
-  sun.target.position.set(x,-8,z);sun.position.set(x+15,37,z+7.5)}
+  sun.target.position.set(x,-8,z);sun.position.set(x+Math.round(SUNV.x*48),-8+Math.round(SUNV.y*48),z+Math.round(SUNV.z*48))}
 const QS={low:{dpr:1,bub:150,tex:0,hi:0,wave:0,sh:0},medium:{dpr:1.5,bub:420,tex:1,hi:0,wave:1,sh:1024},high:{dpr:2,bub:420,tex:1,hi:1,wave:1,sh:2048},ultra:{dpr:2,bub:420,tex:1,hi:1,wave:1,sh:2048,ultra:1}};
 AL.reg(floor.material,'sand',0xd9bd85,0xffffff);coralMats.forEach(m=>AL.reg(m,'coral'));
 function applyQ(q){Q=q;const s=QS[q];
@@ -1616,24 +1622,38 @@ vec2 ripS(vec2 p){vec2 f=p/.4-.5,i0=floor(f),fr=f-i0;
   return mix(mix(a,b,fr.x),mix(c,d,fr.x),fr.y);}
 float ripM(vec2 p){return 1.-smoothstep(17.,24.,max(abs(p.x-uRC.x),abs(p.y-uRC.y)));}
 `;
-const GHC=`float ghH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+/* langit siang->senja->malam (dipakai skyM, ghSky, awan, air): gradien malam, cahaya cakrawala senja, bintang, bulan (lawan matahari) */
+const DNC=`uniform float uDay,uTw;
+float dnH(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+vec3 dnSky(vec3 col,vec3 d,vec3 sun,float st){float y=clamp(d.y,0.,1.),s=dot(d,sun),nt=(1.-uDay)*(1.-.9*st);
+  col=mix(mix(vec3(.04,.06,.14),vec3(.01,.015,.06),sqrt(y)),col,uDay);
+  vec3 tc=mix(vec3(1.,.5,.24),vec3(.92,.42,.58),clamp(y*2.,0.,1.));
+  col=mix(col,tc*(.55+.7*max(s,0.)),uTw*pow(1.-y,3.)*.8*(1.-.6*st));
+  col+=vec3(1.,.55,.28)*pow(max(s,0.),5.)*uTw*.45*(1.-st);
+  float md=dot(d,-sun),hz=step(0.,d.y+.02);
+  col+=vec3(.75,.85,1.)*(smoothstep(.99935,.99965,md)*1.6+pow(max(md,0.),60.)*.18)*nt*hz;
+  vec3 g=floor(d*130.);float sf=step(.997,dnH(g))*smoothstep(.02,.25,d.y)*(.5+.5*dnH(g+7.))*nt;
+  return col+vec3(.85,.9,1.)*sf*(1.-smoothstep(.998,.9993,md));}
+`;
+const GHC=DNC+`float ghH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float ghN(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(ghH(i),ghH(i+vec2(1.,0.)),f.x),mix(ghH(i+vec2(0.,1.)),ghH(i+vec2(1.,1.)),f.x),f.y);}
 float ghF(vec2 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*ghN(p);p=p*2.03+vec2(17.3,9.1);a*=.5;}return s;}
 vec3 ghSky(vec3 d,vec3 sun,float t,float st){float y=clamp(d.y,0.,1.),s=max(dot(d,sun),0.);
   vec3 col=mix(vec3(.74,.89,.99),vec3(.15,.43,.9),pow(y,.5));
   col=mix(col,vec3(1.,.93,.78),pow(s,4.)*.22)+vec3(1.,.95,.8)*smoothstep(.9985,.9996,s)*2.;
-  return mix(col,vec3(.3,.33,.38),st*.85);}`;
+  col=dnSky(col,d,sun,st);
+  return mix(col,vec3(.3,.33,.38)*mix(.1,1.,uDay),st*.85);}`;
 const WXV=`varying vec3 vW;varying float vH;uniform float uHi;\n`+WXG+`void main(){vec4 w=modelMatrix*vec4(position,1.);vH=0.;
   if(uHi>.5){float fd=1.-smoothstep(34.,48.,length(w.xz-cameraPosition.xz));vec2 sl;float h=wvH(w.xz,sl)+ripS(w.xz).x*ripM(w.xz);w.y+=h*fd;vH=h*fd;}
   vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`;
-const WXF=`varying vec3 vW;varying float vH;uniform float uN,uHi;uniform vec3 uSun,uFog,uFogA;uniform float uGh,uRFon;uniform sampler2D uRF;uniform mat4 uTM;\n`+WXG+GHC+`
+const WXF=`varying vec3 vW;varying float vH;uniform float uN,uHi;uniform vec3 uSun,uSunT,uFog,uFogA;uniform float uGh,uRFon;uniform sampler2D uRF;uniform mat4 uTM;\n`+WXG+GHC+`
 float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hs(i),hs(i+vec2(1.,0.)),f.x),mix(hs(i+vec2(0.,1.)),hs(i+vec2(1.,1.)),f.x),f.y);}
 vec2 grad(vec2 p){float t=uTime;p+=vec2(sin(p.y*.31+t*.7),cos(p.x*.27+t*.55))*1.6;vec2 g=vec2(0.);
   for(int i=0;i<8;i++){if(float(i)>=uN)break;float a=.6+(fract(float(i)*.618)-.5)*1.7,k=.3*pow(1.55,float(i)),s=.2*pow(.78,float(i));
     vec2 d=vec2(cos(a),sin(a));g+=d*s*cos(dot(d,p)*k+t*sqrt(k*9.8)*.55+float(i)*1.7);}return g;}
 vec3 sky(vec3 d){vec3 r=vec3(0.);float y=clamp(d.y,0.,1.),s=max(dot(d,uSun),0.);
-  if(uGh>.5)r=ghSky(d,uSun,uTime,uStorm);else r=mix(mix(vec3(.78,.9,.98),vec3(.2,.48,.88),sqrt(y))+vec3(1.,.9,.7)*(pow(s,6.)*.4+pow(s,180.)*8.),vec3(.3,.33,.38),uStorm*.85);
+  if(uGh>.5)r=ghSky(d,uSunT,uTime,uStorm);else r=mix(dnSky(mix(vec3(.78,.9,.98),vec3(.2,.48,.88),sqrt(y))+vec3(1.,.9,.7)*(pow(s,6.)*.4+pow(s,180.)*8.),d,uSunT,uStorm),vec3(.3,.33,.38)*mix(.1,1.,uDay),uStorm*.85);
   return r;}
 vec3 under(vec3 d){return mix(uFog,vec3(.02,.2,.35),clamp(-d.y,0.,1.));}
 void main(){
@@ -1669,6 +1689,7 @@ void main(){
       if(uGh>.5)col+=vec3(1.,.96,.82)*(1.-uStorm*.9)*(pow(nh,1800.)*7.+step(.84,nz(vW.xz*11.+vec2(uTime*1.4,-uTime*1.1)))*pow(nh,110.)*4.);
     }else col+=vec3(1.,.95,.8)*pow(max(dot(Rf,uSun),0.),300.)*2.5;
     col=mix(col,vec3(.96,.99,1.),foam);al=clamp(.8+F*.4+foam,0.,1.);}
+  col*=mix(.22,1.,uDay);
   float fg=1.-exp(-pow(dist*.03,2.));col=mix(col,V.y<=0.?uFog:uFogA,fg);
   gl_FragColor=vec4(col,mix(al,1.,fg));}`;
 /* patch permukaan High: grid rapat + cincin jauh berlubang (mengikuti kamera) */
@@ -1685,9 +1706,9 @@ function wxSurf(on){
 /* langit */
 const SKYV=new THREE.Vector2();
 const skyM=new THREE.Mesh(new THREE.SphereGeometry(100,24,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
-  uniforms:{uSun:{value:new THREE.Vector3(10,30,5).normalize()},uT:{value:0},uS:{value:0},uRes:{value:new THREE.Vector2(1,1)},uP:{value:new THREE.Vector2(1,1)},uPx:{value:4}},
+  uniforms:{uDay:DN.uD,uTw:DN.uTw,uSun:{value:DN.sv},uT:{value:0},uS:{value:0},uRes:{value:new THREE.Vector2(1,1)},uP:{value:new THREE.Vector2(1,1)},uPx:{value:4}},
   vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.);}',
-  fragmentShader:`varying vec3 vD;uniform vec3 uSun;uniform float uT,uS,uPx;uniform vec2 uRes,uP;
+  fragmentShader:DNC+`varying vec3 vD;uniform vec3 uSun;uniform float uT,uS,uPx;uniform vec2 uRes,uP;
 const float CB=20.,CH=200.,VS=3.,VB=8.;
 float hs2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float vn2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hs2(i),hs2(i+vec2(1.,0.)),f.x),mix(hs2(i+vec2(0.,1.)),hs2(i+vec2(1.,1.)),f.x),f.y);}
@@ -1695,14 +1716,14 @@ vec3 hs33(vec3 c){vec3 a=vec3(dot(c,vec3(127.1,311.7,74.7)),dot(c,vec3(269.5,183
 void main(){vec3 d=normalize(vD);float y=max(d.y,0.),s=max(dot(d,uSun),0.);
   vec3 col=mix(vec3(.78,.9,.98),vec3(.2,.48,.88),sqrt(y));
   col+=vec3(1.,.9,.7)*pow(s,8.)*.35+vec3(1.,.97,.88)*smoothstep(.9975,.9992,s)*2.;
-  col=mix(col,vec3(.2,.22,.26)*(.55+.45*smoothstep(0.,.6,d.y)),uS*.9);
-
+  col=dnSky(col,d,uSun,uS);
+  col=mix(col,vec3(.2,.22,.26)*mix(.1,1.,uDay)*(.55+.45*smoothstep(0.,.6,d.y)),uS*.9);
   gl_FragColor=vec4(col,1.);}`}));
 /*CLD_BEGIN*/
 /* AWAN VOXEL (mesh): kubah acak + shoulder + noise bola (ala mod CreateSkys), dibangun jadi geometri sekali di awal (time-sliced),
    face culling (sisi yg menempel voxel lain dibuang) + greedy meshing (sisi rata digabung jadi quad besar), akhirnya digabung
    jadi SATU BufferGeometry = 1 draw call, opaque, tanpa bayangan/alpha. Posisi awan di-wrap periodik di vertex shader (tanpa rebuild). */
-function makeClouds(THREE,sunV){
+function makeClouds(THREE,sunV,dn,dnc){
   const CB=110,CH=200,VB=3.5,P=2400,TAU=6.2831853;
   const H=[0,0,0],fr=x=>x-Math.floor(x);
   function hs(x,y,z){H[0]=fr(Math.sin(x*127.1+y*311.7+z*74.7)*43758.5453);H[1]=fr(Math.sin(x*269.5+y*183.3+z*246.1)*43758.5453);H[2]=fr(Math.sin(x*113.5+y*271.9+z*124.6)*43758.5453)}
@@ -1790,7 +1811,7 @@ function makeClouds(THREE,sunV){
     return{pos:new Float32Array(pos),dir:new Float32Array(dir),aO:new Float32Array(aO)}}
 
   const mat=new THREE.ShaderMaterial({
-    uniforms:{uSun:{value:sunV},uT:{value:0},uS:{value:0}},
+    uniforms:{uDay:dn.uD,uTw:dn.uTw,uSun:{value:sunV},uT:{value:0},uS:{value:0}},
     vertexShader:`attribute float aDir;attribute vec3 aO;uniform float uT,uS;varying vec3 vN;varying float vOc;varying vec3 vP;
 const float P=${P}.;
 void main(){vec2 w=vec2(uT*3.2,uT*1.2);vec2 o=mod(aO.yz-w+P*.5,P)-P*.5;
@@ -1798,18 +1819,24 @@ void main(){vec2 w=vec2(uT*3.2,uT*1.2);vec2 o=mod(aO.yz-w+P*.5,P)-P*.5;
   float d=floor(aDir*.5+.01);float sg=mod(aDir,2.)>.5?-1.:1.;
   vN=vec3(d<.5?1.:0.,(d>.5&&d<1.5)?1.:0.,d>1.5?1.:0.)*sg;vOc=aO.x;vP=p;
   gl_Position=projectionMatrix*viewMatrix*modelMatrix*vec4(p,1.);}`,
-    fragmentShader:`varying vec3 vN;varying float vOc;varying vec3 vP;uniform vec3 uSun;uniform float uS;
+    fragmentShader:dnc+`varying vec3 vN;varying float vOc;varying vec3 vP;uniform vec3 uSun;uniform float uS;
 void main(){float dist=length(vP);vec3 d=vP/max(dist,1.);float y=max(d.y,0.),s=max(dot(d,uSun),0.);
   vec3 col=mix(vec3(.78,.9,.98),vec3(.2,.48,.88),sqrt(y));
   col+=vec3(1.,.9,.7)*pow(s,8.)*.35+vec3(1.,.97,.88)*smoothstep(.9975,.9992,s)*2.;
-  col=mix(col,vec3(.2,.22,.26)*(.55+.45*smoothstep(0.,.6,d.y)),uS*.9);
+  col=dnSky(col,d,uSun,uS);
+  col=mix(col,vec3(.2,.22,.26)*mix(.1,1.,uDay)*(.55+.45*smoothstep(0.,.6,d.y)),uS*.9);
   float pk=floor(vOc+.5),cov=floor(pk/64.),mk=pk-cov*64.;
   float ex=mod(mk,2.),nx=mod(floor(mk/2.),2.),ey=mod(floor(mk/4.),2.),ny=mod(floor(mk/8.),2.),ez=mod(floor(mk/16.),2.),nz=mod(floor(mk/32.),2.);
-  float lit=max(max(max(ex*uSun.x,nx*-uSun.x),max(ey*uSun.y,ny*-uSun.y)),max(ez*uSun.z,nz*-uSun.z));lit=clamp(lit,0.,1.);
+  vec3 Lm=-uSun;/* siang: lampu matahari; malam: lampu bulan (lawan matahari) */
+  float litS=clamp(max(max(max(ex*uSun.x,nx*-uSun.x),max(ey*uSun.y,ny*-uSun.y)),max(ez*uSun.z,nz*-uSun.z)),0.,1.);
+  float litM=clamp(max(max(max(ex*Lm.x,nx*-Lm.x),max(ey*Lm.y,ny*-Lm.y)),max(ez*Lm.z,nz*-Lm.z)),0.,1.)*.6;
+  float lit=mix(litM,litS,uDay);
   float hh=clamp((vP.y-${CB}.)/${CH}.,0.,1.);
   float v=lit*(1.-.12*cov)+.2+.1*hh;
   vec3 cc=mix(vec3(.7,.8,.95),vec3(.82,.9,.99),step(.26,v));
   cc=mix(cc,vec3(.92,.96,1.),step(.47,v));cc=mix(cc,vec3(1.,.99,.96),step(.7,v));
+  cc=mix(cc*vec3(.14,.17,.3),cc,uDay);/* malam: biru gelap */
+  cc=mix(cc,cc*vec3(1.2,.7,.55)+vec3(.1,.03,0.),uTw*.75);/* senja/fajar: oranye-merah muda */
   cc=mix(cc,cc*vec3(.36,.4,.48),uS*.9);
   cc=mix(cc,col,clamp(dist/2400.,0.,.5));cc=mix(cc,col,smoothstep(950.,1150.,dist));
   gl_FragColor=vec4(cc,1.);}`});
@@ -1839,9 +1866,9 @@ void main(){float dist=length(vP);vec3 d=vP/max(dist,1.);float y=max(d.y,0.),s=m
 skyM.renderOrder=-1000;skyM.frustumCulled=false;skyM.visible=false;
 /* pass langit terpisah: kubah gradien + awan mesh (far besar), lalu depth di-clear sebelum scene utama */
 const CS=new THREE.Scene(),CCAM=new THREE.PerspectiveCamera(70,1,4,4000);CS.add(skyM);
-const CLD=makeClouds(THREE,skyM.material.uniforms.uSun.value);CS.add(CLD.mesh);
+const CLD=makeClouds(THREE,skyM.material.uniforms.uSun.value,DN,DNC);CS.add(CLD.mesh);
 const GHM=new THREE.Mesh(new THREE.SphereGeometry(100,32,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
-  uniforms:{uSun:{value:skyM.material.uniforms.uSun.value},uT:{value:0},uS:{value:0}},
+  uniforms:{uDay:DN.uD,uTw:DN.uTw,uSun:{value:skyM.material.uniforms.uSun.value},uT:{value:0},uS:{value:0}},
   vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.);}',
   fragmentShader:'varying vec3 vD;uniform vec3 uSun;uniform float uT,uS;\n'+GHC+'void main(){gl_FragColor=vec4(ghSky(normalize(vD),uSun,uT,uS),1.);}'}));
 GHM.renderOrder=-1000;GHM.frustumCulled=false;GHM.visible=false;CS.add(GHM);
@@ -2227,7 +2254,9 @@ const BX=BC.getContext('2d'),BTEX=new THREE.CanvasTexture(BC);BTEX.anisotropy=4;
 BARO.visible=false;cam.add(BARO);
 /* alat yang dipegang dibungkus HG: turun saat barometer naik, lalu naik lagi saat barometer turun (bergantian, tidak bertumpuk) */
 const HG=new THREE.Group();cam.add(HG);[tool,SH,NT].forEach(o=>HG.add(o));
-function baroFc(){const t=Math.max(0,Math.ceil(WX.t));
+const WXL={clear:'Cerah',cloud:'Mendung',storm:'Badai'};
+function baroFc(){const t=Math.max(0,Math.ceil(WX.t)),pl=wxPlan();
+  if(pl&&pl.length>3)return pl.slice(1,4).map(q=>[q[0],WXL[q[0]],Math.ceil(q[1]),0]);
   if(WX.ph==='clear')return[['cloud','Mendung',t,0],['storm','Badai',t+40,0],['clear','Cerah',t+102,1]];
   if(WX.ph==='cloud')return[['storm','Badai',t,0],['clear','Cerah',t+62,1]];
   return[['clear','Cerah',t,0],['cloud','Mendung',t+120,1]]}
@@ -2448,24 +2477,55 @@ function baroStep(dt,show){if(TP){BA.p=0;BARO.visible=false;HG.position.y=0;HG.v
   if(show){const k=WX.ph+'|'+Math.ceil(WX.t)+'|'+WX.k.toFixed(2)+'|'+Math.round(STM.dmg)+'|'+AN.s;if(k!==BA.key){BA.key=k;baroDraw()}}
   const th=Math.tan(cam.fov*Math.PI/360)*.55,bx=Math.min(.3,th*cam.aspect-.14),by=-th+.13;
   BARO.position.set(bx,by-(1-v)*.55,-.55);BARO.rotation.set(.14,-.3+Math.sin(t*1.3)*.015,Math.sin(t*.9)*.012-.05*(1-v))}
+/* timeline cuaca dari server (WORLD.sch): [[fase,sisaDetik],[fase,detikHinggaMulai],...] atau null bila belum sinkron/basi */
+function wxPlan(){const s=WORLD.sch;if(!WORLD.ok||!s)return null;let r=s[0][1]-(Date.now()-WORLD.at)/1000,i=0;
+  while(r<=0&&++i<s.length)r+=s[i][1];
+  if(i>=s.length)return null;
+  const o=[[s[i][0],r]];let a=r;for(let j=i+1;j<s.length;j++){o.push([s[j][0],a]);a+=s[j][1]}
+  return o}
+/* siang-malam: fase hari dari server (fallback jam lokal), gerak matahari/bulan, warna cahaya & kabut */
+const dnSm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)},_dnC=new THREE.Color();
+function dayStep(){
+  const len=WORLD.ok?WORLD.len:600,p=WORLD.ok?(WORLD.day+(Date.now()-WORLD.at)/1000/len)%1:(Date.now()/1000/len)%1,a=(p-.25)*Math.PI*2;
+  DN.p=p;DN.sv.set(Math.cos(a),Math.sin(a),.25).normalize();
+  const e=DN.sv.y,d=dnSm(-.08,.26,e),tw=Math.exp(-e*e/.0225);
+  DN.el=e;DN.d=d;DN.tw=tw;DN.uD.value=d;DN.uTw.value=tw;
+  if(e>=-.08)SUNV.copy(DN.sv);else SUNV.copy(DN.sv).negate();
+  if(SUNV.y<.2){SUNV.y=.2;SUNV.normalize()}
+  const n=1-d;
+  DN.cu.setHex(0x1aa3c9).lerp(_dnC.setHex(0x041622),n);
+  DN.ca.setHex(0xc7e6fa).lerp(_dnC.setHex(0x0a1430),n).lerp(_dnC.setHex(0xf0a070),tw*.45);
+  DN.su.setHex(0x04222d).lerp(_dnC.setHex(0x01080c),n);
+  DN.sa.setHex(0x4a535c).lerp(_dnC.setHex(0x080c14),n)}
 function weatherStep(dt){
-  if(state==='play'){WX.t-=dt;
-    if(WX.t<=0&&!window.__guest){
-      if(WX.ph==='clear'){WX.ph='cloud';WX.t=40;if(PG.up.wx)toast('Badai ±40 dtk lagi! Siapkan jangkar (G)','sad')}
-      else if(WX.ph==='cloud'){WX.ph='storm';WX.t=rnd(50,75);toast('BADAI! Turunkan jangkar (G) & dekati','sad')}
-      else{WX.ph='clear';WX.t=rnd(90,150);toast('Badai reda');stormEnd()}}
+  dayStep();let pl=null;
+  if(state==='play'){
+    pl=wxPlan();
+    if(pl){/* cuaca global: server yang menentukan */
+      const ph=pl[0][0];
+      if(ph!==WX.ph){if(ph==='cloud'){if(PG.up.wx)toast('Badai ±40 dtk lagi! Siapkan jangkar (G)','sad')}else if(ph==='storm')toast('BADAI! Turunkan jangkar (G) & dekati','sad');else if(WX.ph==='storm'){toast('Badai reda');stormEnd()}}
+      WX.ph=ph;WX.t=pl[0][1]}
+    else{/* server belum/tidak terjangkau: siklus lokal lama */
+      WX.t-=dt;
+      if(WX.t<=0){
+        if(WX.ph==='clear'){WX.ph='cloud';WX.t=40;if(PG.up.wx)toast('Badai ±40 dtk lagi! Siapkan jangkar (G)','sad')}
+        else if(WX.ph==='cloud'){WX.ph='storm';WX.t=rnd(50,75);toast('BADAI! Turunkan jangkar (G) & dekati','sad')}
+        else{WX.ph='clear';WX.t=rnd(90,150);toast('Badai reda');stormEnd()}}}
+    if(WORLD.ok&&!pl&&window.__worldSync)window.__worldSync();
     if(!DEEP.on)stormStep(dt);petXp(dt)}
   else{WX.ph='clear';WX.t=75;STM.dmg=0}
-  const tg=WX.ph==='storm'?1:WX.ph==='cloud'?.25:0;WX.k+=(tg-WX.k)*(1-Math.exp(-dt*.35));if(WX.k<.001)WX.k=0;
-  const k=WX.k,ab=!!wx.above;
-  HEMI.intensity=.85*(1-(ab?.6:.8)*k);sun.intensity=(QS[Q].sh?.9:.6)*(1-(ab?.85:.95)*k);
-  S.background.setHex(ab?0xc7e6fa:0x1aa3c9).lerp(WCOL.setHex(ab?0x4a535c:0x04222d),k);S.fog.color.copy(S.background);rainStep(dt,k,ab);
+  const tg=WX.ph==='storm'?1:WX.ph==='cloud'?.25:0;if(pl&&!WORLD.k0){WORLD.k0=true;WX.k=tg}WX.k+=(tg-WX.k)*(1-Math.exp(-dt*.35));if(WX.k<.001)WX.k=0;
+  const k=WX.k,ab=!!wx.above,dd=DN.d;DN.dim=1-(1-k)*dd;
+  HEMI.intensity=.85*(1-(ab?.6:.8)*k)*(.45+.55*dd);sun.intensity=Math.max((QS[Q].sh?.9:.6)*(1-(ab?.85:.95)*k)*dd,.22*(1-dd)*(1-.7*k));
+  HEMI.color.setHex(0xcaf6ff).lerp(_dnC.setHex(0x3a4c8c),1-dd);HEMI.groundColor.setHex(0x1b5e7a).lerp(_dnC.setHex(0x0a1a30),1-dd);
+  sun.color.setHex(0xffffff).lerp(_dnC.setHex(0xff9a58),DN.tw*.8).lerp(_dnC.setHex(0x8fa8ff),1-dd);
+  S.background.copy(ab?DN.ca:DN.cu).lerp(WCOL.copy(ab?DN.sa:DN.su),k);S.fog.color.copy(S.background);rainStep(dt,k,ab);
   skyM.material.uniforms.uS.value=k;CLD.mat.uniforms.uS.value=k;
-  if(SW){SW.uniforms.uStorm.value=k;SW.uniforms.uFog.value.setHex(0x1aa3c9).lerp(WCOL.setHex(0x04222d),k);SW.uniforms.uFogA.value.setHex(0xc7e6fa).lerp(WCOL.setHex(0x4a535c),k)}
+  if(SW){SW.uniforms.uStorm.value=k;SW.uniforms.uFog.value.copy(DN.cu).lerp(DN.su,k);SW.uniforms.uFogA.value.copy(DN.ca).lerp(DN.sa,k)}
   /* arus badai: lebih kuat dekat permukaan, hilang saat terkait jangkar */
   if(k>.05&&state==='play'){const a=t*.04+1.3,df=.3+.7*Math.max(0,Math.min(1,(pos.y+12)/18)),m=6.5*k*k*df*(.85+.15*Math.sin(t*.9))*(AN.s==='down'&&AN.hooked?.35:1.5);SURGE.set(Math.cos(a)*m,0,Math.sin(a)*m)}else SURGE.set(0,0,0);
   /* senter */
-  FLON.v+=((FLON.on&&state==='play'?1:0)-FLON.v)*(1-Math.exp(-dt*12));CU.uFL.value=FLON.v*flFlick();CU.uSt.value=WX.k;
+  FLON.v+=((FLON.on&&state==='play'?1:0)-FLON.v)*(1-Math.exp(-dt*12));CU.uFL.value=FLON.v*flFlick();CU.uSt.value=DN.dim;
   /* tali jangkar */
   anchorStep(dt);
   /* barometer */
@@ -2506,7 +2566,7 @@ function shadowTick(now){if(!sun.castShadow)return;const mv=sun.position.x!==shX
 function update(dt){
   if(paused)dt=0;
   t+=dt;FRM++;fxTick(dt);
-  CU.uT.value=t;if(SW)SW.uniforms.uTime.value=t;if(HQ()){const ru=RY.material.uniforms;ru.uTime.value=t;ru.uSt.value=WX.k;ru.uAb.value=wx.above?1:0;const dok=!!(LX.rt&&LX.rt.depthTexture&&LX.vol&&LX.vol.visible&&!LX.dead&&!LX.dpx&&!(VEH.on&&state==='play'&&!TP));ru.uDT.value=dok?LX.rt.depthTexture:null;ru.uDo.value=dok?1:0}
+  CU.uT.value=t;if(SW)SW.uniforms.uTime.value=t;if(HQ()){const ru=RY.material.uniforms;ru.uTime.value=t;ru.uSt.value=DN.dim;ru.uAb.value=wx.above?1:0;const dok=!!(LX.rt&&LX.rt.depthTexture&&LX.vol&&LX.vol.visible&&!LX.dead&&!LX.dpx&&!(VEH.on&&state==='play'&&!TP));ru.uDT.value=dok?LX.rt.depthTexture:null;ru.uDo.value=dok?1:0}
   weedPhys(dt);plantFrustum();meadows.forEach((m,i)=>plantStep(m,dt,i,meadowStep));kelps.forEach((k,i)=>plantStep(k,dt,i+9,kelpStep));for(const b of PG.beds){const mm=BEDG.get(b);if(mm&&mm.kl)kelpStep(mm.kl,dt)}marineStep(dt);
   {const yb=Math.min(-12,cam.position.y-14);for(let i=0;i<NB;i++){bp[i*3+1]+=dt*1.5;if(bp[i*3+1]>5)bp[i*3+1]=yb+rnd(0,6);else if(bp[i*3+1]<yb-8)bp[i*3+1]=yb+rnd(0,6)}}bg.attributes.position.needsUpdate=true;
 
@@ -3402,8 +3462,8 @@ function deepStep(dt){
   if(DEEP.on){
     const cy=cam.position.y,wy=surfY(cam.position.x,cam.position.z);
     if(RY)RY.visible=false;SURGE.set(0,0,0);STM.dmg=0;STM.far=0;surf.scale.set(5.2,5.2,1);surf.position.x=cam.position.x;surf.position.z=cam.position.z;/* permukaan air 2600 m mengikuti kamera: tidak ada tepi/tembok */
-    if(cy<wy){const dep=Math.max(0,WL-cy),k=1-Math.exp(-dep/52);_dk1.setHex(0x1aa3c9);_dk2.setHex(0x041a2a);_dk1.lerp(_dk2,k);S.background.copy(_dk1);S.fog.color.copy(_dk1);S.fog.density=.03+.016*k;
-      HEMI.intensity=Math.max(.36,HEMI.intensity*(1-.6*k));sun.intensity*=Math.exp(-dep/45);
+    if(cy<wy){const dep=Math.max(0,WL-cy),k=1-Math.exp(-dep/52);_dk1.copy(DN.cu);_dk2.setHex(0x041a2a).multiplyScalar(.3+.7*DN.d);_dk1.lerp(_dk2,k);S.background.copy(_dk1);S.fog.color.copy(_dk1);S.fog.density=.03+.016*k;
+      HEMI.intensity=Math.max(.36*(.4+.6*DN.d),HEMI.intensity*(1-.6*k));sun.intensity*=Math.exp(-dep/45);
       if(SW)SW.uniforms.uFog.value.copy(_dk1);SB.color.setHex(0x9fecff).lerp(_dk1,Math.min(1,k*1.6))}
     else SB.color.setHex(0x9fecff)
     if(DEEP.built){deepStream(dt);if(++DEEP.pt%24===0)dPopRun();deepFauna(dt);deepAmb(dt);if(dt>0){for(const m of DEEP.kp)kelpStep(m,dt);for(const m of DEEP.md)meadowStep(m,dt)}
@@ -3603,14 +3663,14 @@ void main(){
   col+=vec3(1.,.8,.4)*ghost(p,mix(s,c0,1.7),.28,.05)*.14;
   col+=vec3(.6,.4,1.)*ghost(p,mix(s,c0,2.2),.06,.025)*.26;
   gl_FragColor=vec4(min(col*uK,vec3(1.4)),1.);}`}));m.frustumCulled=false;return m})());
-function sunFx(t){const on=HQ()&&wx.above&&state!=='menu'&&skyM.material&&WX.k<.98;
+function sunFx(t){const on=HQ()&&wx.above&&state!=='menu'&&skyM.material&&WX.k<.98&&DN.d>.03;
   if(!on){FXU.uK.value=0;return false}
   const su=skyM.material.uniforms.uSun.value;cam.updateMatrixWorld(true);cam.getWorldDirection(_fc);
   const f=su.dot(_fc);if(f<.02){FXU.uK.value=0;return false}
   _fv.copy(cam.position).addScaledVector(su,100).project(cam);
   const ex=Math.max(Math.abs(_fv.x),Math.abs(_fv.y*.8)),edge=1-Math.min(1,Math.max(0,(ex-1)/.7));
   FXU.uSP.value.set(_fv.x*cam.aspect,_fv.y);FXU.uAsp.value=cam.aspect;FXU.uT.value=t;
-  FXU.uK.value=edge*Math.min(1,f*3)*(1-WX.k*.9)*(UL()?1:.8);return FXU.uK.value>.01}
+  FXU.uK.value=edge*Math.min(1,f*3)*(1-WX.k*.9)*DN.d*(UL()?1:.8);return FXU.uK.value>.01}
 let last=performance.now();
 function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);deepWorld();followSun();R.clear();
   const skyOn=!!wx.above,bgS=S.background;
@@ -3628,6 +3688,13 @@ const SB_URL='https://adlillxbmnbyfvdivxum.supabase.co';
 const SB_KEY='sb_publishable_RRjD1S6FYu3UrD5AvzysKA_VpH6jcPB';
 /* URL Worker Cloudflare (hasil `wrangler deploy`), contoh: 'wss://save-ocean-room.NAMA.workers.dev' */
 const WS_URL='wss://save-ocean-room.secret5.workers.dev';
+/* cuaca + siang-malam GLOBAL: server (Worker /world, dari jam server) yang menentukan; klien hanya menyinkron tiap 45 dtk / saat timeline habis */
+let wsyB=false,wsyT=0;
+function worldSync(){if(!WS_URL||wsyB||Date.now()-wsyT<5000)return;wsyB=true;wsyT=Date.now();const t0=Date.now();
+  fetch(WS_URL.replace(/^ws/,'http')+'/world',{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{
+    if(!j||!Array.isArray(j.sch)||!j.sch.length||!(j.len>0))throw new Error('format /world');
+    WORLD.sch=j.sch;WORLD.day=j.day;WORLD.len=j.len;WORLD.at=(t0+Date.now())/2;WORLD.ok=true}).catch(e=>console.warn('world sync gagal:',e)).finally(()=>{wsyB=false})}
+window.__worldSync=worldSync;worldSync();setInterval(worldSync,45000);
 const CFG=!!(SB_URL&&SB_KEY&&window.supabase);
 const sb=CFG?supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,detectSessionInUrl:true}}):null;
 const q=id=>document.getElementById(id),LS=localStorage;
@@ -3750,9 +3817,6 @@ window.__onCyc=()=>{KL.clear();KR.clear();send('env',{cyc:CYC})};
 function applyLive(e){
   if(!e)return;
   if(state!=='play'){if(roomMode==='guest'&&e.ph)ENV=e;return}
-  if(roomMode==='guest'&&e.ph){
-    if(WX.ph!==e.ph){if(e.ph==='cloud')toast('Badai ±40 dtk lagi! Siapkan jangkar (G)','sad');else if(e.ph==='storm')toast('BADAI! Turunkan jangkar (G) & dekati','sad');else toast('Badai reda')}
-    WX.ph=e.ph;WX.t=e.t;STM.dmg=e.dmg||0}
   syncCyc(e.cyc);applyTaken(e.tk);applyAnchor(e.anchor)}
 const nameTex=n=>{const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');
   x.font='bold 30px sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=6;x.strokeStyle='rgba(0,0,0,.6)';
@@ -3865,8 +3929,8 @@ setInterval(()=>{
   LIT.forEach((o,i)=>{if(!o.on&&!KL.has(i)){KL.add(i);nl.push(i)}});
   TR.forEach((o,i)=>{if(o.got&&!KR.has(i)){KR.add(i);nr.push(i)}});
   if(nl.length||nr.length)send('tk',{l:nl,r:nr})},300);
-/* host: cuaca tiap 3 dtk (jangkar/sampah dikirim saat berubah) */
-setInterval(()=>{if(ch&&roomMode==='host'&&state==='play')send('env',{ph:WX.ph,t:WX.t,dmg:STM.dmg,cyc:CYC})},3000);
+/* host: siklus respawn tiap 3 dtk (cuaca & siang-malam global dari server /world; jangkar/sampah dikirim saat berubah) */
+setInterval(()=>{if(ch&&roomMode==='host'&&state==='play')send('env',{cyc:CYC})},3000);
 addEventListener('pagehide',()=>{if(user&&roomMode==='host'&&token){try{fetch(SB_URL+'/rest/v1/rooms?host=eq.'+user.id,{method:'DELETE',keepalive:true,headers:{apikey:SB_KEY,Authorization:'Bearer '+token}})}catch(e){}}});
 
 /* ---- start ---- */

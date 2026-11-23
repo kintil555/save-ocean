@@ -3,10 +3,26 @@ import { DurableObject } from "cloudflare:workers";
 const CODE = /^[A-HJ-NP-Z2-9]{6}$/;
 const MAXTK = 5000;
 
+/* ---------- Dunia global: cuaca + siang/malam murni fungsi jam server (tanpa simpan data per pemain) ---------- */
+const WX_CYC = 240; // detik per siklus cuaca: cerah -> mendung (40) -> badai
+const wH = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const wxSeg = c => { const d1 = 110 + Math.floor(wH(c) * 40); return [["clear", d1], ["cloud", 40], ["storm", WX_CYC - d1 - 40]]; };
+function world(now, env) {
+  const len = Math.max(60, +env.DAY_LEN || 600), T = now / 1000, c0 = Math.floor(T / WX_CYC);
+  let off = T - c0 * WX_CYC, first = true;
+  const sch = []; // [fase, sisa detik] lalu [fase, durasi penuh] ...
+  for (let c = c0; sch.length < 8; c++) for (const [ph, d] of wxSeg(c)) {
+    if (first) { if (off >= d) { off -= d; continue; } sch.push([ph, +(d - off).toFixed(2)]); first = false; }
+    else sch.push([ph, d]);
+  }
+  return { now, day: (T / len) % 1, len, sch };
+}
+
 /* ---------- Worker: verifikasi Discord/Supabase token + cek ruang, lalu teruskan ke DO ---------- */
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    if (url.pathname === "/world") return new Response(JSON.stringify(world(Date.now(), env)), { headers: { "content-type": "application/json", "access-control-allow-origin": "*", "cache-control": "no-store" } });
     const m = url.pathname.match(/^\/room\/([A-Z0-9]{6})$/);
     if (!m || !CODE.test(m[1])) return new Response("not found", { status: 404 });
     if (req.headers.get("Upgrade") !== "websocket") return new Response("expect websocket", { status: 426 });
@@ -74,7 +90,6 @@ export class Room extends DurableObject {
       const st = await this.load(), out = {}; let save = false;
       if (p.anchor && (p.anchor.s === "up" || (p.anchor.s === "down" && num(p.anchor.x) && num(p.anchor.y) && num(p.anchor.z)))) { st.anchor = p.anchor; out.anchor = p.anchor; save = true }
       if (a.host) {
-        if (typeof p.ph === "string" && num(p.t)) { st.ph = p.ph; st.t = p.t; st.dmg = num(p.dmg) ? p.dmg : 0; st.at = Date.now(); Object.assign(out, { ph: p.ph, t: p.t, dmg: st.dmg }) }
         if (num(p.cyc)) { if (p.cyc !== st.cyc) { st.cyc = p.cyc; st.tk = { l: [], r: [] }; save = true } out.cyc = p.cyc }
         if (p.tk) { this.merge(st, p.tk); out.tk = p.tk; save = true }
       }
@@ -88,7 +103,6 @@ export class Room extends DurableObject {
     } else if (m.e === "need") {
       const st = await this.load(), o = { cyc: st.cyc, tk: st.tk };
       if (st.anchor) o.anchor = st.anchor;
-      if (st.ph) { o.ph = st.ph; o.t = Math.max(0, st.t - (Date.now() - st.at) / 1000); o.dmg = st.dmg || 0 }
       ws.send(JSON.stringify({ e: "env", p: o }));
     }
   }
