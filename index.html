@@ -3465,6 +3465,9 @@ function xvSetup(m){const mat=M(0xffffff,{alphaTest:.05,side:THREE.DoubleSide,em
   g.traverse(o=>o.layers.set(7));/* pod lokal hanya di layer 7 */
   S.traverse(o=>{if(o.isLight)o.layers.enable(7)});
   const mk=rot=>{const r=new THREE.Mesh(new THREE.RingGeometry(.96,1,96),new THREE.MeshBasicMaterial({color:0x6fe6ff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));r.rotation.x=rot;r.frustumCulled=false;r.visible=false;r.userData.lxSkip=true;DEEP.g.add(r);return r};
+  /* layar sonar & layar kamera memancarkan cahaya ke interior pod */
+  const ll=(x,y,z,d)=>{const l=new THREE.PointLight(0xffffff,0,d,2);l.position.set(x,y,z);l.layers.set(7);g.add(l);return l};
+  VEH.ls=ll(-.2,.95,-.5,2.8);VEH.lf=ll(0,1.45,-.7,3.6);
   VEH.rings=[mk(-Math.PI/2),mk(0)];g.visible=false;DEEP.g.add(g);VEH.g=g}
 /* API untuk blok multiplayer */
 window.__xv={ready:()=>!!VEH.base,load:()=>xvLoad(),make:()=>xvBody(),eye:XV_EYE};
@@ -3543,8 +3546,12 @@ function vehStep(dt,f){const k=c=>keys.has(c)?1:0,bz=busy()||VEH.tr?0:1,thrIn=bz
 function vehPost(dt){pressStep(dt);const g=VEH.g;if(VEH.on&&!VEH.hud)xvHud();
   const show=DEEP.on&&(VEH.on||VEH.parked)&&!!g;if(g)g.visible=show;const hud=VEH.hud;
   if(hud){const hv=VEH.on&&state==='play'&&!tutOpen;hud.el.style.display=hv?'block':'none';if(!hv)hud.fx.style.opacity=0}
-  if(!VEH.on||!g){xvAudio(false,0);if(VEH.rings)for(const r of VEH.rings)r.visible=false;if(g&&VEH.parked){g.position.copy(VEH.pp);g.rotation.y=VEH.yaw}return}
-  PL.model.visible=false;g.position.set(pos.x,pos.y-XV_EYE,pos.z);g.rotation.y=VEH.yaw;if(VEH.tur){VEH.tur.rotation.y=VEH.fy;VEH.thead.rotation.x=VEH.fp}
+  if(!VEH.on||!g){xvAudio(false,0);if(VEH.ls){VEH.ls.intensity=VEH.lf.intensity=0}if(VEH.rings)for(const r of VEH.rings)r.visible=false;if(g&&VEH.parked){g.position.copy(VEH.pp);g.rotation.y=VEH.yaw}return}
+  PL.model.visible=false;g.position.set(pos.x,pos.y-XV_EYE,pos.z);g.rotation.y=VEH.yaw;
+  if(VEH.ls){/* sonar: hijau-cyan, berdenyut mengikuti sapuan & kedekatan bahaya; layar depan: warna air sekitar (dari kabut), lebih terang bila lampu pod menyala */
+    const nr=Math.min(1,Math.max(0,1-XS.near/12)),pl=.5+.5*Math.sin(t*(2+6*nr));VEH.ls.color.setRGB(nr>.5?1:.25,nr>.5?.35:1,nr>.5?.25:.8);VEH.ls.intensity=3*(.55+.25*pl*(.4+nr));
+    VEH.lf.color.copy(S.fog.color).multiplyScalar(1.5).addScalar(.08);VEH.lf.intensity=3.5*(FLON.on?.95:.6)*(.6+.4*Math.min(1,Math.max(0,(WL-pos.y)<40?1:1-(WL-pos.y-40)/80)))}
+  if(VEH.tur){VEH.tur.rotation.y=VEH.fy;VEH.thead.rotation.x=VEH.fp}
   if(VEH.lever){VEH.lever.rotation.x=-.75*VEH.thr;VEH.lever.rotation.z=.3*VEH.str}
   for(const p of VEH.prop)p.rotation.z+=(4+34*Math.abs(VEH.thr)+10*Math.abs(VEH.str))*dt;
   if(VEH.led)VEH.led.color.setHex(VEH.hull>50?0x37ff7a:VEH.hull>25?0xffc040:(Math.sin(t*10)>0?0xff3030:0x300808));
