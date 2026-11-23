@@ -393,7 +393,7 @@ function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/
 addEventListener('resize',resize); resize();
 
 /* water caustics injected into every lit material (shared uniforms, on only in High) */
-const CU={uFL:{value:0},uSt:{value:0},uFP:{value:new THREE.Vector3()},uFD:{value:new THREE.Vector3(0,0,-1)},uT:{value:0},uOn:{value:0},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uRL:{value:Array.from({length:8},()=>new THREE.Vector4())},uRC:{value:Array.from({length:8},()=>new THREE.Vector3())},uLN:{value:0}};
+const CU={uFL:{value:0},uSt:{value:0},uFP:{value:new THREE.Vector3()},uFD:{value:new THREE.Vector3(0,0,-1)},uT:{value:0},uOn:{value:0},uSun:{value:new THREE.Vector3(10,30,5).normalize()},uRL:{value:Array.from({length:8},()=>new THREE.Vector4())},uRC:{value:Array.from({length:8},()=>new THREE.Vector3())},uLN:{value:0},uShC:{value:null},uShP:{value:new THREE.Vector4(0,0,0,40)},uShOn:{value:0}};
 const CAUS=`float caus(vec3 p){vec2 q=(p.xz+uSun.xz/uSun.y*(6.-p.y))*.15;float t=uT*.5+23.;
  vec2 pp=mod(q*6.28318530718,6.28318530718)-250.,i=pp;float c=1.;
  for(int n=0;n<4;n++){float tt=t*(1.-3.5/float(n+1));i=pp+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));
@@ -401,7 +401,7 @@ const CAUS=`float caus(vec3 p){vec2 q=(p.xz+uSun.xz/uSun.y*(6.-p.y))*.15;float t
  c/=4.;c=1.17-pow(c,1.4);return pow(abs(c),8.);}\n`;
 function withCaustics(m){m.onBeforeCompile=s=>{Object.assign(s.uniforms,CU);
   s.vertexShader='varying vec3 vCW;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCW=(modelMatrix*\n#ifdef USE_INSTANCING\ninstanceMatrix*\n#endif\nvec4(transformed,1.0)).xyz;');
-  s.fragmentShader='varying vec3 vCW;uniform float uT,uOn,uFL,uSt;uniform vec3 uSun,uFD,uFP;uniform vec4 uRL[8];uniform vec3 uRC[8];uniform float uLN;\n'+CAUS+s.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );','vec3 aL=outgoingLight*exp(-vec3(.025,.015,.008)*max(6.-vCW.y,0.));float La=dot(aL,vec3(.3,.59,.11)),fdd=length(vCW-uFP);vec3 fb=aL + diffuseColor.rgb*vec3(.6,.95,1.)*caus(vCW)*uOn*1.1*exp(-(6.-vCW.y)*.05);vec3 rl=vec3(0.);for(int i=0;i<8;i++){if(float(i)>=uLN)break;float dd=length(vCW-uRL[i].xyz);rl+=uRC[i]*uRL[i].w/(1.+.3*dd*dd);}fb+=diffuseColor.rgb*rl*(1.-.5*smoothstep(.3,1.,La));float fcd=dot((vCW-uFP)/(fdd+1e-4),uFD);float fcn=smoothstep(.5,.93,fcd)*.62+pow(max(fcd,0.),40.)*.75;vec3 fcl=mix(vec3(1.,.97,.9),vec3(.45,.82,1.),1.-exp(-fdd*.06));vec3 fl=mix(diffuseColor.rgb,vec3(1.),.3)*fcl*uFL*fcn*(1.3*(1.+1.6*uSt)/(1.+(.1-.05*uSt)*fdd*fdd))*exp(-fdd*.025)*(1.-.5*smoothstep(.25,.95,La));gl_FragColor = vec4( fb+fl*(1.-clamp(fb,0.,1.)), diffuseColor.a );')};return m}
+  s.fragmentShader='varying vec3 vCW;uniform float uT,uOn,uFL,uSt;uniform vec3 uSun,uFD,uFP;uniform vec4 uRL[8];uniform vec3 uRC[8];uniform float uLN;uniform samplerCube uShC;uniform vec4 uShP;uniform float uShOn;\nfloat unS(vec4 v){return dot(v,vec4(255./256./16777216.,255./256./65536.,255./256./256.,255./256.));}\nfloat shAt(vec3 w){vec3 q=w-uShP.xyz;float dl=length(q);if(dl>=uShP.w-.3||dl<.05)return 1.;vec3 d=q/dl;float iv=1./(uShP.w-.15),rr=(dl-.15)*iv,b=(.28+.045*dl)*iv,r=clamp(.5/dl,.006,.035),s=0.;\ns+=step(rr-b,unS(textureCube(uShC,d+r*vec3(.8,.6,-.3))));s+=step(rr-b,unS(textureCube(uShC,d+r*vec3(-.6,.9,.4))));s+=step(rr-b,unS(textureCube(uShC,d+r*vec3(.3,-.9,.7))));s+=step(rr-b,unS(textureCube(uShC,d+r*vec3(-.9,-.4,-.6))));\nreturn mix(s*.25,1.,smoothstep(.8,1.,rr));}\n'+CAUS+s.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );','vec3 aL=outgoingLight*exp(-vec3(.025,.015,.008)*max(6.-vCW.y,0.));float La=dot(aL,vec3(.3,.59,.11)),fdd=length(vCW-uFP);vec3 fb=aL + diffuseColor.rgb*vec3(.6,.95,1.)*caus(vCW)*uOn*1.1*exp(-(6.-vCW.y)*.05);float shw=uShOn>.5?shAt(vCW):1.;vec3 rl=vec3(0.);for(int i=0;i<8;i++){if(float(i)>=uLN)break;float dd=length(vCW-uRL[i].xyz);rl+=uRC[i]*uRL[i].w/(1.+.3*dd*dd)*(i==0?shw:1.);}fb+=diffuseColor.rgb*rl*(1.-.5*smoothstep(.3,1.,La));float fcd=dot((vCW-uFP)/(fdd+1e-4),uFD);float fcn=smoothstep(.5,.93,fcd)*.62+pow(max(fcd,0.),40.)*.75;vec3 fcl=mix(vec3(1.,.97,.9),vec3(.45,.82,1.),1.-exp(-fdd*.06));vec3 fl=mix(diffuseColor.rgb,vec3(1.),.3)*fcl*uFL*fcn*(1.3*(1.+1.6*uSt)/(1.+(.1-.05*uSt)*fdd*fdd))*exp(-fdd*.025)*(1.-.5*smoothstep(.25,.95,La));gl_FragColor = vec4( fb+fl*(1.-clamp(fb,0.,1.)), diffuseColor.a );')};return m}
 let PREVM=false;
 const M=(c,o)=>{const m=new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));return PREVM?m:withCaustics(m)};
 const SPH=new THREE.SphereGeometry(1,16,12),BOX=new THREE.BoxGeometry(1,1,1),CONE=new THREE.ConeGeometry(1,1,10),
@@ -2319,9 +2319,12 @@ const LXN=8,LXV=16,LX={vol:null,scene:null,u:null,srcs:[],pool:[],n:0,vm:new Map
   make(){const mk=n=>Array.from({length:n},()=>new THREE.Vector4());LX.vp=mk(LXV);LX.vc=mk(LXV);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,
       uniforms:{uInv:{value:cam.projectionMatrixInverse},uCam:{value:cam.matrixWorld},uPos:{value:cam.position},uFP:CU.uFP,uFD:CU.uFD,uFL:CU.uFL,uT:CU.uT,
-        uBL:{value:30},uFg:{value:.03},uDk:{value:1},uN:{value:0},uVP:{value:LX.vp},uVC:{value:LX.vc},uDT:{value:null},uEM:{value:null},uTx:{value:new THREE.Vector2(.002,.002)},uDo:{value:0},uEg:{value:0},uDbg:{value:0}},
+        uBL:{value:30},uFg:{value:.03},uDk:{value:1},uN:{value:0},uVP:{value:LX.vp},uVC:{value:LX.vc},uDT:{value:null},uEM:{value:null},uTx:{value:new THREE.Vector2(.002,.002)},uDo:{value:0},uEg:{value:0},uDbg:{value:0},uShC:CU.uShC,uShP:CU.uShP,uShOn:CU.uShOn},
       vertexShader:'varying vec2 vUv;void main(){vUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uFP,uFD;uniform float uT,uFL,uBL,uFg,uDk,uN,uDo,uEg,uDbg;uniform vec4 uVP[16],uVC[16];uniform sampler2D uDT,uEM;uniform vec2 uTx;
+      fragmentShader:`varying vec2 vUv;uniform mat4 uInv,uCam;uniform vec3 uPos,uFP,uFD;uniform float uT,uFL,uBL,uFg,uDk,uN,uDo,uEg,uDbg;uniform vec4 uVP[16],uVC[16];uniform sampler2D uDT,uEM;uniform vec2 uTx;uniform samplerCube uShC;uniform vec4 uShP;uniform float uShOn;
+float unS(vec4 v){return dot(v,vec4(255./256./16777216.,255./256./65536.,255./256./256.,255./256.));}
+/* visibilitas titik p dari lampu bayangan (slot 0): 1 = terang, 0 = di balik batu/medan/kapal */
+float shv(vec3 p){vec3 q=p-uShP.xyz;float dl=length(q);if(dl>=uShP.w-.3||dl<.05)return 1.;float iv=1./(uShP.w-.15);return step((dl-.15)*iv,unS(textureCube(uShC,q/dl))+(.3+.03*dl)*iv);}
 float sdAt(vec2 uv){float z=texture2D(uDT,uv).r;if(z>=.99999)return 80.;vec4 q=uInv*vec4(uv*2.-1.,z*2.-1.,1.);return min(80.,length(q.xyz/q.w));}
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);vec2 q=i.xy+i.z*37.,r=i.xy+(i.z+1.)*37.;
@@ -2337,6 +2340,11 @@ void main(){
   for(int i=0;i<16;i++){if(float(i)>=uN)break;
     vec3 L=uVP[i].xyz-uPos;float t0=dot(L,d),dl=length(L),h2=max(dot(L,L)-t0*t0,0.),a=uVP[i].w,c=sqrt(a*a+h2);
     float I=a*a/c*max(atan((min(60.,sd)-t0)/c)-atan(-t0/c),0.)*exp(-pow(max(t0-sd,0.)/max(a*.4,.1),2.));/* cahaya di balik permukaan = terhalang (tanpa bocor lewat batu) */
+    if(i==0&&uShOn>.5&&sqrt(h2)<a*5.){/* lampu bayangan: integral numerik, tiap sampel dikalikan visibilitas shadow cube -> baji gelap di balik batu */
+      float tA=max(t0-a*8.,0.),tB=min(t0+a*8.,min(60.,sd)),ac=0.;
+      if(tB>tA){float dz=(tB-tA)/24.,jj=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
+        for(int k=0;k<24;k++){vec3 pp=uPos+d*(tA+(float(k)+jj)*dz),ee=pp-uVP[0].xyz;ac+=shv(pp)*a*a/(a*a+dot(ee,ee))*dz;}}
+      I=ac;}
     col+=uVC[i].rgb*uVC[i].w*I*exp(-pow(dl*uFg,2.))*(1.-smoothstep(a*1.2,a*5.,sqrt(h2)));}
   /* senter: raymarch kerucut (bentuk sama dengan sorotan di permukaan), berakhir di bidang tempat berkas menabrak medan */
   if(uFL>.01){
@@ -2360,6 +2368,12 @@ void main(){
     LX.n=0;LX.fr++;for(const f of LX.srcs)f(LX.add);
     const P=LX.pool,L=[];for(let k=0;k<LX.n;k++){const o=P[k];if(hq||o.pri>0)L.push(o)}
     L.sort((a,b)=>(a.d-a.pri*6)-(b.d-b.pri*6));
+    /* lampu pembayang = sumber terdekat (tetap yang sama selama masih dekat posisi cube), dipindah ke slot 0 */
+    CU.uShOn.value=0;const sh=LX.sh;sh.has=false;
+    if(hq&&!sh.dead&&L.length){let cd=null;const lim=Math.min(4,L.length);
+      if(sh.valid)for(let k=0;k<lim;k++){const o=L[k];if(Math.abs(o.x-sh.pos.x)+Math.abs(o.y-sh.pos.y)+Math.abs(o.z-sh.pos.z)<1.2){cd=o;break}}
+      if(!cd&&L[0].d<30)cd=L[0];
+      if(cd){const ci=L.indexOf(cd);if(ci>0){L.splice(ci,1);L.unshift(cd)}sh.cv.set(cd.x,cd.y,cd.z);sh.has=true}}
     const m1=Math.min(hq?LXN:3,L.length),m2=hq?Math.min(LXV,L.length):0,U=CU.uRL.value,V=CU.uRC.value;
     for(let k=0;k<Math.max(m1,m2);k++){const o=L[k];
       if(k<m1){const f=hq?1-sm(18,28,o.d):1;U[k].set(o.x,o.y,o.z,o.i*f);V[k].set(o.c[0],o.c[1],o.c[2])}
@@ -2373,10 +2387,32 @@ void main(){
     const beam=FLON.v>.01&&state==='play',under=cp.y<surfY(cp.x,cp.z)-.05;
     if(!LX.vol)return;
     const on=hq&&under;LX.vol.visible=on;if(!on)return;
+    if(sh.has&&sh.valid&&!sh.dead&&sh.cv.distanceToSquared(sh.pos)<36){CU.uShP.value.set(sh.pos.x,sh.pos.y,sh.pos.z,sh.R);CU.uShOn.value=1}
     if(beam){const F=CU.uFD.value,B=CU.uFP.value,top=surfY(B.x,B.z);let Lb=40;
       for(let s=1.5;s<=40;s+=1.5){const x=B.x+F.x*s,y=B.y+F.y*s,z=B.z+F.z*s;if(y<DGH(x,z)+.15||y>top){Lb=s;break}}
       LX.bl+=(Lb-LX.bl)*(1-Math.exp(-dt*9))}
     const u=LX.u;u.uN.value=m2;u.uBL.value=LX.bl;u.uFg.value=S.fog.density;u.uDk.value=.35+.65*Math.min(1,Math.max(0,(WL-cp.y)/45))}};
+/* SHADOW LAMPU TITIK (LX.sh): cube depth 6 sisi untuk 1 lampu terdekat (slot 0). Hanya oklusi besar (layer 5 dari LX.tag): medan, batu, lengkung, kapal.
+   Dirender dengan MeshDistanceMaterial (jarak ternormalisasi, RGBA8 packed) ke WebGLCubeRenderTarget NEAREST. Dipakai: (a) shader permukaan `shAt` (PCF 4 tap, cahaya slot 0 saja),
+   (b) LX.vol `shv` (halo lampu diintegralkan numerik 24 sampel -> baji bayangan). Render ulang bila lampu bergeser >0,35 m (maks tiap 8 frame) atau tiap 90 frame (chunk streaming). Hanya High/Ultra & di bawah air. */
+LX.sh={rt:null,cc:null,dm:null,pos:new THREE.Vector3(),cv:new THREE.Vector3(),has:false,valid:false,dead:false,fr:-1e9,R:40,size:0};
+LX.shRun=function(){const s=LX.sh;if(s.dead||!s.has)return;
+  try{const c=s.cv,mv=s.valid?c.distanceTo(s.pos):1e9,age=LX.fr-s.fr;
+    if(!(!s.valid||mv>6||(mv>.35&&age>=8)||age>=90))return;
+    const size=(({low:0,medium:1,high:2,ultra:3})[Q]|0)>=3?256:192;
+    if(!s.rt||s.size!==size){if(s.rt)s.rt.dispose();s.size=size;
+      s.rt=new THREE.WebGLCubeRenderTarget(size,{format:THREE.RGBAFormat,type:THREE.UnsignedByteType,minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter,generateMipmaps:false,depthBuffer:true});
+      s.rt.texture.minFilter=s.rt.texture.magFilter=THREE.NearestFilter;s.rt.texture.generateMipmaps=false;
+      s.cc=new THREE.CubeCamera(.15,s.R,s.rt);s.cc.layers.set(5);CU.uShC.value=s.rt.texture;s.valid=false}
+    if(!s.dm){s.dm=new THREE.MeshDistanceMaterial();s.dm.morphTargets=true}
+    s.dm.referencePosition.copy(c);s.dm.nearDistance=.15;s.dm.farDistance=s.R;
+    s.cc.position.copy(c);s.cc.updateMatrixWorld(true);
+    R.getClearColor(_lxc);const oa=R.getClearAlpha(),ob=S.background,ort=R.getRenderTarget(),sa=R.shadowMap.autoUpdate,ox=R.xr.enabled;
+    S.background=null;R.shadowMap.autoUpdate=false;R.xr.enabled=false;R.setClearColor(0xffffff,1);
+    try{S.overrideMaterial=s.dm;for(let f=0;f<6;f++){R.setRenderTarget(s.rt,f);R.clear();R.render(S,s.cc.children[f])}}
+    finally{S.overrideMaterial=null;R.setRenderTarget(ort);R.setClearColor(_lxc,oa);S.background=ob;R.shadowMap.autoUpdate=sa;R.xr.enabled=ox}
+    s.pos.copy(c);s.valid=true;s.fr=LX.fr}
+  catch(e){s.dead=true;s.valid=false;CU.uShOn.value=0;console.error('LX shadow mati:',e)}};
 /* sumber bawaan: Roh Laut (pet), flora bioluminesen, cerobong lava, lentera angler, ubur-ubur */
 LX.src(add=>{const tm=performance.now()*.001;for(const o of PETS){if(o.k!=='roh'||DEEP.on||!o.g.visible)continue;const P=o.g.position;add(P.x,P.y+.3,P.z,PETD.roh.c[o.v],2.1*(1+.18*Math.sin(tm*3+o.ph)),.35,1,.5)}});
 LX.src(add=>{if(!DEEP.on||!DEEP.built||!HQ())return;const cx=cam.position.x,cz=cam.position.z;
@@ -3574,7 +3610,7 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);de
   if(skyOn){const ul=UL();skyM.visible=!ul;CLD.mesh.visible=true;GHM.visible=ul;GHM.position.copy(cam.position);GHM.material.uniforms.uT.value=t;GHM.material.uniforms.uS.value=WX.k;
     CCAM.fov=cam.fov;CCAM.aspect=cam.aspect;CCAM.updateProjectionMatrix();CCAM.position.copy(cam.position);CCAM.quaternion.copy(cam.quaternion);CCAM.updateMatrixWorld();R.getDrawingBufferSize(SKYB);{const ps=Math.max(3,Math.round(SKYB.y/220)),w=Math.ceil(SKYB.x/ps),h=Math.ceil(SKYB.y/ps);if(SKYRT.width!==w||SKYRT.height!==h)SKYRT.setSize(w,h);
     R.setRenderTarget(SKYRT);R.clear();R.render(CS,CCAM);R.setRenderTarget(null);R.render(BS,VC)}R.clearDepth();S.background=null}
-  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();vehFeed();const vl=VEH.on&&state==='play';if(vl){cam.layers.set(7);if(TP)cam.layers.enable(0)}R.render(S,cam);if(vl)cam.layers.set(0);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible&&!LX.dead&&!(vl&&!TP)){try{LX.pass2();R.render(LX.scene,VC)}catch(e){LX.dead=true;LX.vol.visible=false;console.error('LX pass mati:',e)}}if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
+  {const bv=BARO.visible;BARO.visible=false;reflPass();BARO.visible=bv}shadowTick(now);flashSync();vehFeed();const vl=VEH.on&&state==='play';if(vl){cam.layers.set(7);if(TP)cam.layers.enable(0)}R.render(S,cam);if(vl)cam.layers.set(0);{const sb=S.background;S.background=null;ghostPass();S.background=sb}S.background=bgS;if(RY&&RY.visible)R.render(VS,VC);if(LX.vol&&LX.vol.visible&&!LX.dead&&!(vl&&!TP)){try{LX.shRun();LX.pass2();R.render(LX.scene,VC)}catch(e){LX.dead=true;LX.vol.visible=false;console.error('LX pass mati:',e)}}if(sunFx(t))R.render(FXS,VC);requestAnimationFrame(loop)}
 meadows.forEach(m=>meadowStep(m,0,true));kelps.forEach(k=>kelpStep(k,0,true));meadows.forEach(m=>plantBounds(m,5,m.mh));kelps.forEach(k=>plantBounds(k,9,k.mk));applyQ(ST.q);syncUI();updHUD();PG.beds.forEach(mkBed);PG.deco.forEach(mkDeco);PG.pets.forEach(mkPet);updReef();spawnTreasure();spawn(4,5,11);Math.random=_realRand;requestAnimationFrame(loop);
 </script>
 <script type="text/plain" data-defer>
