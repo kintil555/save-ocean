@@ -3353,7 +3353,7 @@ function exitDeep(){if(DEEP.busy||!DEEP.on)return;DEEP.busy=true;vehStow();
   fade(1,800).then(()=>{DEEP.on=false;DEEP.g.visible=false;deepUnloadAll();ropeDrop();closeRopeUI();PG.zone='shallow';saveP();const q=bl(0,BOAT.lz+1.5);pos.set(q[0],-4,q[1]);vel.set(0,0,0);yaw=0;pitch=-.12;cam.rotation.set(pitch,yaw,0);cam.position.copy(pos);
     wx.above=null;updReef();return fade(0,800)}).then(()=>{DEEP.busy=false;toast('Kembali ke kapal','gold')})}
 function deepReset(){vehStow();DEEP.on=DEEP.busy=false;DEEP.g.visible=false;if(DEEP.built)deepUnloadAll();ropeDrop();fade(0,0)}
-function deepTip(){if(VEH.on)return vehTip();{const dp=WL-pos.y;if(dp>XV_SAFE-40)return'⚠ Tekanan '+(1+dp/10).toFixed(0)+' atm · batas aman '+(1+XV_SAFE/10).toFixed(0)+' atm tanpa Explorer (B)'}const bn=boatNear();
+function deepTip(){if(VEH.on)return vehTip();{const dp=WL-pos.y;if(dp>XV_SAFE-10)return'⚠ Tekanan '+(1+dp/10).toFixed(0)+' atm · batas aman '+(1+XV_SAFE/10).toFixed(0)+' atm tanpa Explorer (B)'}const bn=boatNear();
   if(bn)return RD.on?'E: menu kapal (lepas tali / naik ke kapal)':'E: menu kapal · ambil tali dulu';
   return RD.on?'Tali '+Math.round(RD.L)+' m · I > Tali: panjangkan · T: lepas tali':'Tanpa tali! Kembali ke kapal & ambil tali (E)'}
 /* sembunyikan dasar laut, karang, hewan dunia atas selama di laut dalam; permukaan air, kapal, langit & cahaya tetap */
@@ -3479,14 +3479,14 @@ function xsDraw(){const c=XS.cx,W=256,Rm=XS.R,sc=W/2/Rm,N=XS.N,cell=Rm*2/N,vb=po
   if(XS.near<8){c.strokeStyle='rgba(255,60,40,'+(.5+.5*Math.sin(t*14)).toFixed(2)+')';c.lineWidth=5;c.beginPath();c.arc(128,128,124,0,6.2832);c.stroke()}
   XS.tex.needsUpdate=true}
 /* ---- kendali ---- */
-/* ---- tekanan air: tanpa pod, di bawah XV_SAFE m (~16 atm) tubuh hancur seketika. Keluar pod di kedalaman fatal = mati. ---- */
-const XV_SAFE=150,PRESS={dead:false,warnT:0,arm:0};
+/* ---- tekanan air: tanpa pod, di bawah XV_SAFE m (~4 atm, batas free diving manusia 3-4 atm) tubuh hancur seketika. Keluar pod di kedalaman fatal = mati. ---- */
+const XV_SAFE=30,PRESS={dead:false,warnT:0,arm:0};
 function xdeadEl(){let d=document.getElementById('xdead');if(!d){d=document.createElement('div');d.id='xdead';d.style.cssText='position:fixed;inset:0;z-index:50;pointer-events:none;opacity:0;transition:opacity .35s;background:radial-gradient(ellipse at center,#6a0000dd,#000000f2);color:#fff;display:flex;align-items:center;justify-content:center;font:700 26px system-ui,sans-serif;text-align:center;padding:20px';d.textContent='Tekanan air menghancurkan tubuhmu';document.body.appendChild(d)}return d}
 function pressDie(){if(PRESS.dead)return;PRESS.dead=true;xvAudio(false,0);xvThud(2);const d=xdeadEl();d.style.opacity=1;toast('Kamu mati: tekanan air terlalu tinggi tanpa Explorer','sad');
   setTimeout(()=>{d.style.opacity=0;if(DEEP.on&&!DEEP.busy)exitDeep();setTimeout(()=>{PRESS.dead=false},1800)},1800)}
 function pressStep(dt){if(!DEEP.on||DEEP.busy||state!=='play'||VEH.on||VEH.tr||PRESS.dead)return;const dep=WL-pos.y;
   if(dep>XV_SAFE){pressDie();return}
-  if(dep>XV_SAFE-40){PRESS.warnT-=dt;if(PRESS.warnT<=0){PRESS.warnT=6;toast('Tekanan '+(1+dep/10).toFixed(0)+' atm! Batas aman tanpa Explorer: '+(1+XV_SAFE/10).toFixed(0)+' atm','sad')}}}
+  if(dep>XV_SAFE-10){PRESS.warnT-=dt;if(PRESS.warnT<=0){PRESS.warnT=6;toast('Tekanan '+(1+dep/10).toFixed(0)+' atm! Batas aman tanpa Explorer: '+(1+XV_SAFE/10).toFixed(0)+' atm','sad')}}}
 function vehDamage(d,v){VEH.hit=.4;VEH.hull=Math.max(0,VEH.hull-d);VEH.shake=Math.min(1.2,.3+v*.15);VEH.flash=1;xvThud(v);toast('Benturan! Lambung '+Math.round(VEH.hull)+'%','sad');if(VEH.hull<=0)vehCrush()}
 function vehCrush(){if(VEH.crushed)return;VEH.crushed=true;PG.up.xvb=1;saveP();VEH.shake=1.6;toast('Lambung retak! Tekanan air menghancurkan Explorer. Perbaiki di Toko (I)','sad');exitDeep()}
 function vehStep(dt,f){const k=c=>keys.has(c)?1:0,bz=busy()||VEH.tr?0:1,thrIn=bz*(k('KeyW')-k('KeyS')),turn=bz*(k('KeyA')-k('KeyD')),vIn=bz*(k('Space')-(k('ShiftLeft')||k('ShiftRight')||k('KeyC')?1:0)),hf=.45+.55*VEH.hull/100;

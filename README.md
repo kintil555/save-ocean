@@ -53,4 +53,4 @@ Repo **Settings → Pages** → Source: `main` / root. URL: `https://<user>.gith
 
 
 ### Laut Dalam: Explorer Vehicle
-Beli *Explorer Vehicle* di Toko (I). Di Laut Dalam tekan **B** untuk naik/turun. W/S maju-mundur (pelan), A/D belok, Spasi/Shift naik-turun, L lampu, V kamera luar. Lubang pod berupa layar kamera luar: panah ←→↑↓ memutar kamera + lampu, X memusatkan. Pantau sonar (kiri bawah dan layar di meja pod); benturan merusak lambung, 0% = tertekan air. Tanpa Explorer, kedalaman >150 m (~16 atm) langsung mematikan (termasuk keluar pod di sana). Pemain lain melihat pod-mu (butuh Worker versi terbaru).
+Beli *Explorer Vehicle* di Toko (I). Di Laut Dalam tekan **B** untuk naik/turun. W/S maju-mundur (pelan), A/D belok, Spasi/Shift naik-turun, L lampu, V kamera luar. Lubang pod berupa layar kamera luar: panah ←→↑↓ memutar kamera + lampu, X memusatkan. Pantau sonar (kiri bawah dan layar di meja pod); benturan merusak lambung, 0% = tertekan air. Tanpa Explorer, kedalaman >30 m (~4 atm, batas free diving manusia 3-4 atm; peringatan mulai ~3 atm / 20 m) langsung mematikan (termasuk keluar pod di sana). Pemain lain melihat pod-mu (butuh Worker versi terbaru).
